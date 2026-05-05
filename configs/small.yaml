@@ -1,0 +1,71 @@
+# ClearMind × MiniMind-aligned 小模型配置（约 26M 参数）
+# 复刻 minimind2-small 的架构规格，使用 minimind tokenizer（vocab=6400）
+# 适合 MacBook MPS / 单卡 CUDA 真训练，目标是与 minimind 同规模版本拉齐效果
+
+model:
+  d_model: 512
+  n_heads: 8
+  n_kv_heads: 2          # GQA 4:1（与 minimind 同款）
+  n_layers: 8
+  d_ff: 1664             # ⌈512·π/64⌉·64，TensorCore 对齐
+  vocab_size: 6400       # 与 tokenizer/minimind 一致
+  max_seq_len: 1024
+  dropout: 0.0           # minimind 默认 0；预训练大数据无需 dropout
+  norm_eps: 1.0e-6
+
+tokenizer:
+  type: hf                                       # "hf" or "sentencepiece"
+  path: tokenizer/minimind                       # HF tokenizer 目录（仓库自带）
+  bos_token_id: 1                                # <|im_start|>
+  eos_token_id: 2                                # <|im_end|>
+  pad_token_id: 0                                # <|endoftext|>
+
+pretrain:
+  batch_size: 16
+  gradient_accumulation: 8                       # effective batch = 128
+  max_steps: 30000
+  lr: 5.0e-4
+  min_lr: 5.0e-5
+  weight_decay: 0.1
+  warmup_steps: 1000
+  save_every: 2000
+  eval_every: 500
+  dtype: bfloat16
+  log_every: 50
+  num_workers: 4
+  pretrain_mode: per_sample                      # 与 minimind 对齐
+  use_tensorboard: true
+
+sft:
+  batch_size: 8
+  gradient_accumulation: 4
+  epochs: 2
+  lr: 1.0e-5
+  min_lr: 1.0e-6
+  weight_decay: 0.01
+  dtype: bfloat16
+  log_every: 50
+  patience: 3
+  num_workers: 4
+  use_tensorboard: true
+  system_prompt_ratio: 0.2
+  empty_think_strip_ratio: 0.8
+
+dpo:
+  batch_size: 4
+  gradient_accumulation: 4
+  epochs: 1
+  lr: 5.0e-7                                     # 比 minimind 默认高一点（4e-8 太保守）
+  beta: 0.1
+  dtype: bfloat16
+  log_every: 20
+  patience: 3
+  num_workers: 4
+  use_tensorboard: true
+
+generation:
+  max_new_tokens: 512
+  temperature: 0.7
+  top_k: 50
+  top_p: 0.9
+  repetition_penalty: 1.1

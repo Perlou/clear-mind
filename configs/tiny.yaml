@@ -1,0 +1,71 @@
+# ClearMind × MiniMind tiny 冒烟配置（约 0.5M 参数）
+# 用 minimind tokenizer（vocab=6400）的 tiny 版本，专门用于 CPU/MPS 上的快速验证。
+# 设计目标：在本地把 pretrain → sft → dpo 全流程跑通，最快路径。
+# 注意：tiny 是冒烟用，不追求生成质量；要看实际效果上 small / main / plus。
+
+model:
+  d_model: 64
+  n_heads: 4              # head_dim = 16
+  n_kv_heads: 2           # GQA 2:1
+  n_layers: 2
+  d_ff: 256               # ⌈64·π/64⌉·64
+  vocab_size: 6400
+  max_seq_len: 128
+  dropout: 0.1
+  norm_eps: 1.0e-6
+
+tokenizer:
+  type: hf
+  path: tokenizer/minimind
+  bos_token_id: 1
+  eos_token_id: 2
+  pad_token_id: 0
+
+pretrain:
+  batch_size: 4
+  gradient_accumulation: 2
+  max_steps: 200
+  lr: 3.0e-4
+  min_lr: 3.0e-5
+  weight_decay: 0.01
+  warmup_steps: 20
+  save_every: 100
+  eval_every: 50
+  dtype: float32         # tiny 通常 CPU/MPS 跑，bf16 不一定支持
+  log_every: 10
+  num_workers: 0
+  pretrain_mode: per_sample
+  use_tensorboard: false
+
+sft:
+  batch_size: 4
+  gradient_accumulation: 1
+  epochs: 1
+  max_steps: 500          # 冒烟用：把整个 epoch (200k+ steps) 截到 500 step
+  lr: 1.0e-5
+  weight_decay: 0.01
+  dtype: float32
+  log_every: 5
+  patience: 3
+  num_workers: 0
+  system_prompt_ratio: 0.2
+  empty_think_strip_ratio: 0.8
+
+dpo:
+  batch_size: 2
+  gradient_accumulation: 2
+  epochs: 1
+  max_steps: 200          # 冒烟用：截短 DPO 训练
+  lr: 5.0e-7
+  beta: 0.1
+  dtype: float32
+  log_every: 5
+  patience: 3
+  num_workers: 0
+
+generation:
+  max_new_tokens: 64
+  temperature: 0.8
+  top_k: 50
+  top_p: 0.9
+  repetition_penalty: 1.1
