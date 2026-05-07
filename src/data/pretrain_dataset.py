@@ -5,14 +5,17 @@ PretrainDataset — 预训练数据集
 支持两种数据准备策略：
 
 1. **packed**（默认，与原 ClearMind 一致）：
-   将所有文档 tokenize 后拼接成一个连续 token 流，再切分为固定长度的 (max_seq_len+1) 块。
+   将所有文档 tokenize 后拼接成一个连续 token 流，再切分为固定长度的 ``max_seq_len`` 块。
+   返回的 ``(input_ids, labels)`` **等长且未偏移**，由 :meth:`GPT.forward` 内部统一
+   做 next-token shift（与 minimind / Llama 标准约定一致）。
    优点：无 padding 浪费，最大化吞吐；缺点：跨文档边界 attention 不重置。
    适合大规模 web 文本（trillion token 级）。
 
 2. **per_sample**（与 minimind 对齐）：
    每条 jsonl 样本独立 ``BOS + tokens + EOS``，再 pad 到 ``max_seq_len``，pad 处
-   ``labels=-100``。优点：保留文档边界、与 minimind 训练流程完全一致；缺点：浪费
-   padding 计算量。适合中小规模、多样本短文本数据集（如 minimind 的 pretrain_t2t）。
+   ``labels=-100``。同样**未偏移**，由 forward shift。优点：保留文档边界、与 minimind
+   训练流程完全一致；缺点：浪费 padding 计算量。适合中小规模、多样本短文本数据集
+   （如 minimind 的 pretrain_t2t）。
 
 数据格式（两种模式都支持）：
   - ``.jsonl``：每行 ``{"text": "..."}``（minimind 风格，默认 per_sample 模式）
@@ -84,9 +87,12 @@ class PretrainDataset(Dataset):
             print(f"📦 加载预训练数据 (packed): {data_path}")
             data = self._load_token_stream(data_path)
 
-        # 每条样本占 (max_seq_len + 1) 个 token：前 max_seq_len 作 input，后 max_seq_len 作 target
-        self.n_samples = len(data) // (self.max_seq_len + 1)
-        self.data = data[: self.n_samples * (self.max_seq_len + 1)]
+        # 每条样本占 max_seq_len 个 token；input_ids 与 labels **等长且未偏移**，
+        # 由 GPT.forward 内部统一做 next-token shift（minimind / Llama 标准约定）。
+        # 历史 bug：旧实现这里返回 chunk[:-1] / chunk[1:] 预 shift，与 forward
+        # 的 shift 叠加成"双重 shift"，loss 与位置完全错位。
+        self.n_samples = len(data) // self.max_seq_len
+        self.data = data[: self.n_samples * self.max_seq_len]
 
         print(f"  总 token 数: {len(self.data):,}")
         print(f"  样本数: {self.n_samples:,} (packed)")
@@ -241,10 +247,12 @@ class PretrainDataset(Dataset):
         return self._get_per_sample(idx)
 
     def _get_packed(self, idx: int) -> dict:
-        start = idx * (self.max_seq_len + 1)
-        chunk = self.data[start : start + self.max_seq_len + 1]
-        input_ids = torch.tensor(chunk[:-1], dtype=torch.long)
-        labels = torch.tensor(chunk[1:], dtype=torch.long)
+        # 与 per_sample / SFT 一致：返回未偏移、等长的 (input_ids, labels)，
+        # 由 GPT.forward 在 loss 段统一做 next-token shift。
+        start = idx * self.max_seq_len
+        chunk = self.data[start : start + self.max_seq_len]
+        input_ids = torch.tensor(chunk, dtype=torch.long)
+        labels = input_ids.clone()
         return {"input_ids": input_ids, "labels": labels}
 
     def _get_per_sample(self, idx: int) -> dict:

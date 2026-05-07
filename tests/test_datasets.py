@@ -126,8 +126,13 @@ class TestPretrainDataset:
         # 第一条很短，必有 padding，因而 labels 中至少有一个 -100
         assert (s0["labels"] == -100).any()
 
-    def test_input_target_shift_packed(self, tmp_path):
-        """packed 模式 labels 应是 input_ids 的右移一位"""
+    def test_packed_input_labels_unshifted(self, tmp_path):
+        """packed 模式 labels 必须与 input_ids **等长且未偏移**
+
+        新约定（与 minimind / Llama 一致）：dataset 不做 shift，next-token
+        shift 由 ``GPT.forward`` 在 loss 段统一处理。曾经的 bug 是 dataset 也 shift
+        + forward 也 shift → 双重 shift，loss 与位置完全错位。
+        """
         from data.pretrain_dataset import PretrainDataset
 
         data_file = tmp_path / "train.jsonl"
@@ -141,9 +146,36 @@ class TestPretrainDataset:
         dataset = PretrainDataset(
             str(data_file), tokenizer, max_seq_len=16, mode="packed"
         )
-        if len(dataset) > 0:
-            sample = dataset[0]
-            assert sample["input_ids"].shape == sample["labels"].shape
+        assert len(dataset) > 0
+        sample = dataset[0]
+        assert sample["input_ids"].shape == sample["labels"].shape
+        # 未偏移：packed 模式下 labels 应与 input_ids 完全一致（没有 padding，无 -100）
+        assert torch.equal(sample["input_ids"], sample["labels"]), (
+            "packed 模式 labels 必须等于 input_ids（不预 shift）"
+        )
+
+    def test_per_sample_input_labels_unshifted(self, tmp_path):
+        """per_sample 模式 labels 必须与 input_ids 在非 pad 位置一致（不预 shift）"""
+        from data.pretrain_dataset import PretrainDataset
+
+        data_file = tmp_path / "train.jsonl"
+        # 用相对短的文本，避免被截断到完整长度（这样仍有 padding 验证 -100）
+        samples = [{"text": "hi"}]
+        data_file.write_text(
+            "\n".join(json.dumps(s) for s in samples), encoding="utf-8"
+        )
+
+        tokenizer = MockTokenizer()
+        max_seq = 32
+        dataset = PretrainDataset(
+            str(data_file), tokenizer, max_seq_len=max_seq, mode="per_sample"
+        )
+        sample = dataset[0]
+        # 非 -100 的位置 labels 必须等于 input_ids
+        non_pad = sample["labels"] != -100
+        assert torch.equal(
+            sample["input_ids"][non_pad], sample["labels"][non_pad]
+        ), "per_sample 模式 labels 在非 pad 位置应等于 input_ids（不预 shift）"
 
 
 # ============================================================

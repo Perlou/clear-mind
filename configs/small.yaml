@@ -1,15 +1,16 @@
-# ClearMind × MiniMind-aligned 小模型配置（约 26M 参数）
-# 复刻 minimind2-small 的架构规格，使用 minimind tokenizer（vocab=6400）
-# 适合 MacBook MPS / 单卡 CUDA 真训练，目标是与 minimind 同规模版本拉齐效果
+# ClearMind × MiniMind-aligned 小模型配置（约 13M 参数）
+# 4090 友好的快迭代档：d_model=384 / layers=6 / seq_len=512，GQA 3:1
+# 全流程 (Pretrain + SFT + DPO) 4090 上约 30-50 分钟，适合调试与小规模实验
+# 注：原 26M (对齐 minimind2-small) 的规格已上移到 main.yaml 一档；此档以"快"为主
 
 model:
-  d_model: 512
-  n_heads: 8
-  n_kv_heads: 2          # GQA 4:1（与 minimind 同款）
-  n_layers: 8
-  d_ff: 1664             # ⌈512·π/64⌉·64，TensorCore 对齐
+  d_model: 384
+  n_heads: 6             # head_dim = 64（与原 small 相同 head_dim）
+  n_kv_heads: 2          # GQA 3:1
+  n_layers: 6
+  d_ff: 1216             # ⌈384·π/64⌉·64 = 19·64
   vocab_size: 6400       # 与 tokenizer/minimind 一致
-  max_seq_len: 1024
+  max_seq_len: 512
   dropout: 0.0           # minimind 默认 0；预训练大数据无需 dropout
   norm_eps: 1.0e-6
 

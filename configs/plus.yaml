@@ -10,7 +10,7 @@ model:
   n_layers: 24
   d_ff: 4032           # ⌈1280·π/64⌉·64
   vocab_size: 6400
-  max_seq_len: 1024
+  max_seq_len: 768
   dropout: 0.0
   norm_eps: 1.0e-6
 
@@ -22,20 +22,18 @@ tokenizer:
   pad_token_id: 0
 
 # ===== Pretrain =====
-# 假设数据 ~1.5B tokens（minimind 完整 pretrain_t2t.jsonl）
+# 缩短训练量降低成本：原 max_steps=38000 (~5B tokens, A100 28h)
+# 现 max_steps=20000 (~2.6B tokens, A100 ~14h)，仍跨过 Chinchilla-friendly 下限
 # batch_size=16, accumulation=8 → effective batch = 128
-# 16 * 1024 = 16384 tokens/micro-step
-# Chinchilla-friendly：~10B tokens 总曝光（~6 epoch over 1.5B）
-# 单卡 A100 bf16 估算：~50k tok/s，10B tokens ≈ 56h（超出预算）
-# 折中：跑 ~5B tokens (~28h)，约 305000 micro-step → 38000 optimizer step
+# 16 * 768 = 12288 tokens/micro-step（max_seq_len 1024→768 节省 25% 计算）
 pretrain:
   batch_size: 16
   gradient_accumulation: 8                       # effective batch = 128
-  max_steps: 38000                               # ≈ 5B tokens 曝光
+  max_steps: 20000                               # ≈ 2.6B tokens 曝光（原 38000）
   lr: 3.0e-4
   min_lr: 3.0e-5
   weight_decay: 0.1
-  warmup_steps: 2000
+  warmup_steps: 1500
   save_every: 2000
   eval_every: 500
   dtype: bfloat16

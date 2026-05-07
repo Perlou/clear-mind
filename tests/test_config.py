@@ -20,12 +20,14 @@ class TestModelConfig:
         assert config.max_seq_len == 128
 
     def test_small_factory(self):
-        """small() 应返回与 configs/small.yaml 一致的配置（GQA 4:1）"""
+        """small() 应返回 4090 友好的快迭代配置（~13M, GQA 3:1）"""
         config = ModelConfig.small()
-        assert config.d_model == 512
-        assert config.n_heads == 8
-        assert config.n_layers == 8
+        assert config.d_model == 384
+        assert config.n_heads == 6
+        assert config.n_layers == 6
         assert config.n_kv_heads == 2
+        assert config.head_dim == 64  # 与原 26M small 保持一致 head_dim
+        assert config.max_seq_len == 512
         assert config.vocab_size == 6400
 
     def test_main_factory(self):

@@ -93,18 +93,20 @@ class ModelConfig:
 
     @classmethod
     def small(cls) -> "ModelConfig":
-        """Small 配置 (~26M 参数), 对齐 minimind2-small
+        """Small 配置 (~13M 参数)，4090 友好的快迭代档
 
-        与 ``configs/small.yaml`` 一致。
+        与 ``configs/small.yaml`` 一致。架构从原 26M (对齐 minimind2-small)
+        缩到 d=384 / layers=6 / seq_len=512，全流程 4090 上 30-50min。
+        head_dim 仍为 64（与原 small 相同）。
         """
         return cls(
-            d_model=512,
-            n_heads=8,
-            n_kv_heads=2,  # GQA 4:1
-            n_layers=8,
-            d_ff=1664,  # ⌈512·π/64⌉·64
+            d_model=384,
+            n_heads=6,  # head_dim = 64
+            n_kv_heads=2,  # GQA 3:1
+            n_layers=6,
+            d_ff=1216,  # ⌈384·π/64⌉·64 = 19·64
             vocab_size=6400,
-            max_seq_len=1024,
+            max_seq_len=512,
             dropout=0.0,
         )
 
@@ -113,6 +115,7 @@ class ModelConfig:
         """Main 配置 (~64M 参数), 对齐 minimind-3 dense
 
         与 ``configs/main.yaml`` 一致。这是 ClearMind-Base 发布版本的训练规格。
+        max_seq_len 从 1024 收到 768（节省 25% 训练计算量，仍覆盖绝大多数对话）。
         """
         return cls(
             d_model=768,
@@ -121,7 +124,7 @@ class ModelConfig:
             n_layers=8,
             d_ff=2432,  # ⌈768·π/64⌉·64
             vocab_size=6400,
-            max_seq_len=1024,
+            max_seq_len=768,
             dropout=0.0,
         )
 
@@ -131,7 +134,8 @@ class ModelConfig:
 
         与 ``configs/plus.yaml`` 一致。dense 路线，对标 minimind-3-moe 198M-A64M
         但用单 token 计算量 ~7× 的 dense 模型超越其效果。
-        单卡 A100/A800 80GB bf16 训练，两天内完成 Pretrain + SFT + DPO。
+        max_seq_len 从 1024 收到 768，max_steps 从 38000 收到 20000，
+        单卡 A100/A800 80GB bf16 训练 ~14h 完成 Pretrain。
         """
         return cls(
             d_model=1280,
@@ -140,7 +144,7 @@ class ModelConfig:
             n_layers=24,
             d_ff=4032,  # ⌈1280·π/64⌉·64
             vocab_size=6400,
-            max_seq_len=1024,
+            max_seq_len=768,
             dropout=0.0,
         )
 

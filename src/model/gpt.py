@@ -266,13 +266,27 @@ class GPT(nn.Module):
         # 计算 loss (如果提供了 targets)
         loss = None
         if targets is not None:
+            # ========== Next-token shift（与 minimind / Llama / GPT-2 一致）==========
+            # 因果 LM 的训练目标是"位置 t 的 logits 预测位置 t+1 的 token"。
+            # 因此 dataset 通常返回与 input_ids 等长的未偏移 labels（pad 处置 -100），
+            # 由 forward 在这里做 shift：
+            #   logits[:, :-1, :]  → 位置 0..L-2 的预测
+            #   targets[:, 1:]     → 位置 1..L-1 的真实 token
+            # 历史 bug：此处曾直接用未偏移的 logits/targets，模型只需学一个近似 identity
+            # 映射（weight tying 让这极易达成）就能让 loss → 0、PPL → 1.00，
+            # 但生成阶段完全无意义（聊天空响应）。规避做法：dataset 不再做 shift，
+            # 形状以 [batch, seq_len] 一律传入，由这里统一处理。
+            shift_logits = logits[:, :-1, :].contiguous()
+            shift_targets = targets[:, 1:].contiguous()
+
             # 安全聚合（A 方案 Layer 2）：用 reduction='sum' + clamp(valid_count, min=1)
             # 替代默认 reduction='mean'，避免"整个 batch 全是 -100 (assistant 段被尾部
             # 截断砍光) 时分母 0 → NaN"污染 epoch 累加器的经典 SFT 坑。
             #   - 全 -100：sum=0、valid=0→clamp=1 → loss=0.0（无梯度，对训练无害）
             #   - 正常 batch：与 reduction='mean' 数值完全等价
-            flat_logits = logits.view(-1, logits.size(-1))
-            flat_targets = targets.view(-1)
+            #   - seq_len==1：shift 后 shape=[B,0]，sum=0、valid=0→clamp=1 → loss=0
+            flat_logits = shift_logits.view(-1, shift_logits.size(-1))
+            flat_targets = shift_targets.view(-1)
             loss_sum = F.cross_entropy(
                 flat_logits,
                 flat_targets,
