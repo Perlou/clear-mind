@@ -1,9 +1,8 @@
 """GPT 模型单元测试"""
 
 import torch
-import pytest
 
-from model import ModelConfig, GPT
+from model import GPT
 
 
 class TestGPT:

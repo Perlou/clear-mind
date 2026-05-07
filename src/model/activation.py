@@ -62,7 +62,7 @@ if __name__ == "__main__":
     gate = torch.randn(1, 1, 8)
     up = torch.randn(1, 1, 8)
     result = swiglu(gate, up)
-    print(f"\nSwiGLU 门控:")
+    print("\nSwiGLU 门控:")
     print(f"  gate:   {gate.squeeze()[:4].tolist()}")
     print(f"  up:     {up.squeeze()[:4].tolist()}")
     print(f"  output: {result.squeeze()[:4].tolist()}")

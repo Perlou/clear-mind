@@ -35,7 +35,6 @@ import re
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from .base_trainer import BaseTrainer
 from .trainer_utils import (

@@ -14,7 +14,6 @@ import warnings
 
 import yaml
 from dataclasses import dataclass
-from pathlib import Path
 
 
 @dataclass
@@ -236,10 +235,12 @@ class ModelConfig:
 
 
 if __name__ == "__main__":
-    # 快速测试
+    # 快速测试：打印 4 档配置的参数量
     for name, config in [
+        ("Tiny", ModelConfig.tiny()),
         ("Small", ModelConfig.small()),
-        ("Medium", ModelConfig.medium()),
+        ("Main", ModelConfig.main()),
+        ("Plus", ModelConfig.plus()),
     ]:
         params = config.count_params()
         print(f"\n{'=' * 50}")
@@ -250,7 +251,7 @@ if __name__ == "__main__":
         )
         print(f"  head_dim={config.head_dim}, GQA groups={config.n_kv_groups}")
         print(f"  总参数量: {params['total_millions']:.1f}M")
-        print(f"  各部分:")
+        print("  各部分:")
         print(f"    Embedding:     {params['embedding'] / 1e6:.2f}M")
         print(f"    All Layers:    {params['all_layers'] / 1e6:.2f}M")
         print(f"    Final + LMHead:{params['final_norm_and_lm_head'] / 1e6:.2f}M")

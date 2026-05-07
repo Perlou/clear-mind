@@ -202,7 +202,7 @@ def main() -> int:
     print()
     print("生态用法：")
     print(f"  - vllm: vllm serve {args.repo}")
-    print(f"  - ollama: 先 ollama 转 GGUF：")
+    print("  - ollama: 先 ollama 转 GGUF：")
     print(f"      cd <llama.cpp>; python convert_hf_to_gguf.py {model_dir}")
     return 0
 

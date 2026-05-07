@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Sequence
 
 import numpy as np
 import torch

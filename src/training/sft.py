@@ -88,7 +88,7 @@ class SFTTrainer(BaseTrainer):
             max_steps=self.max_steps,
         )
 
-        print(f"\n📋 SFT 配置:")
+        print("\n📋 SFT 配置:")
         print(f"  Batch size:      {self.batch_size}")
         print(f"  Grad accumulate: {self.gradient_accumulation}")
         print(f"  Epochs:          {self.epochs}")

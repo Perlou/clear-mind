@@ -18,7 +18,6 @@ smoke_test.py — 端到端最小链路冒烟测试
 """
 
 import argparse
-import os
 import shutil
 import subprocess
 import sys

@@ -21,7 +21,6 @@ BPE 算法简述:
 """
 
 import os
-from pathlib import Path
 
 try:
     import sentencepiece as spm
@@ -204,7 +203,7 @@ class ClearMindTokenizer:
             allow_whitespace_only_pieces=True,
         )
 
-        print(f"✅ 分词器训练完成!")
+        print("✅ 分词器训练完成!")
         print(f"   模型: {model_prefix}.model")
         print(f"   词表: {model_prefix}.vocab")
         print(f"   词表大小: {vocab_size}")

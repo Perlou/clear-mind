@@ -124,5 +124,5 @@ if __name__ == "__main__":
         if "weight" in name and "norm" not in name:
             param.data.zero_()
     y_zero, _ = block_zero(x, mask)
-    print(f"\n  残差连接验证 (权重全0时, 输出 ≈ 输入):")
+    print("\n  残差连接验证 (权重全0时, 输出 ≈ 输入):")
     print(f"  max diff: {(y_zero - x).abs().max().item():.8f}")

@@ -27,10 +27,10 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-import yaml
+import yaml  # noqa: E402
 
 # 复用 train.py 的 tokenizer 加载分支（hf / sentencepiece 自动选择）
-from scripts.train import load_tokenizer
+from scripts.train import load_tokenizer  # noqa: E402
 
 
 def _candidate_checkpoints() -> list[str]:
@@ -83,7 +83,6 @@ def main():
         config = yaml.safe_load(f)
 
     # 延迟导入，避免在 --help 时强行依赖 torch
-    import torch
     from src.model.config import ModelConfig
     from src.model.gpt import GPT
     from src.inference.chat import chat_loop

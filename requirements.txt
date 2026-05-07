@@ -4,7 +4,9 @@ torch>=2.1.0
 sentencepiece>=0.2.0
 
 # HF Tokenizer + chat_template + 发布生态
-transformers>=4.40.0
+# transformers 锁 <5：5.x 与 4.x 在 chat_template / from_pretrained 序列化等处不向后兼容；
+# 上线前在 AutoDL 镜像内固化此版本，避免本地 4.x 跑通、远程 5.x 翻车
+transformers>=4.40.0,<5
 jinja2>=3.1.0
 safetensors>=0.4.0
 
@@ -22,3 +24,10 @@ pyyaml>=6.0.0
 # Evaluation & Visualization
 numpy>=1.24.0
 matplotlib>=3.8.0
+
+# Training observability（main/plus.yaml 默认 use_tensorboard: true）
+tensorboard>=2.16.0
+
+# Dev / preflight（preflight.sh 第 8 步会跑 pytest，缺这两个 preflight 直接报 ERROR）
+pytest>=7.0.0
+ruff>=0.4.0

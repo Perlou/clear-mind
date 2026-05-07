@@ -6,7 +6,6 @@ SFT / DPO 基于 minimind tokenizer + chat_template，使用 conftest 提供的 
 
 import json
 
-import pytest
 import torch
 
 

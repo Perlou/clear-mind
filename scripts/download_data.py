@@ -42,7 +42,6 @@ download_data.py — minimind 数据集按需下载
 from __future__ import annotations
 
 import argparse
-import os
 import shutil
 import sys
 from pathlib import Path
@@ -348,8 +347,9 @@ def main() -> int:
     print("\n下一步:")
     print("  1) 端到端冒烟（CPU/MPS）：")
     print("       python scripts/smoke_test.py --clean")
-    print("  2) 训练（A100/A800）：")
-    print("       bash scripts/autodl_train.sh base   # 或 plus")
+    print("  2) 训练（AutoDL，断连保护版，推荐）：")
+    print("       bash scripts/autodl/preflight.sh --profile base")
+    print("       bash scripts/autodl/launch.sh base all   # 或 tiny / small / plus")
     return 0
 
 

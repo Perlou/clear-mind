@@ -181,7 +181,7 @@ class TorchRolloutEngine(RolloutEngine):
         with torch.no_grad(), ctx:
             # repeat 到 [B*K, P]
             expanded_prompt = prompt_ids.repeat_interleave(num_generations, dim=0)
-            expanded_mask = attention_mask.repeat_interleave(num_generations, dim=0)
+            expanded_mask = attention_mask.repeat_interleave(num_generations, dim=0)  # noqa: F841 — 待 generate() 接入 attention_mask 后使用
 
             # generate() 一次只接受 batch，逐条 generate（因为 generate 内部对单 batch 优化）
             # 这里简化：循环每条，最后 stack

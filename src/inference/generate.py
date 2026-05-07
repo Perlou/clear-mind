@@ -45,7 +45,7 @@ def generate(
         生成的完整序列 [1, seq_len + generated_len]
     """
     model.eval()
-    device = input_ids.device
+    device = input_ids.device  # noqa: F841 — 保留以备未来 KV cache 设备校验
 
     # 获取 max_seq_len
     if hasattr(model, "config"):

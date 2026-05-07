@@ -7,7 +7,6 @@
     return (self.weight * self.norm(x.float())).type_as(x)
 """
 
-import pytest
 import torch
 
 from model.normalization import RMSNorm

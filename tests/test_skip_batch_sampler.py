@@ -1,6 +1,5 @@
 """SkipBatchSampler 单元测试"""
 
-import pytest
 
 from training.trainer_utils import SkipBatchSampler
 

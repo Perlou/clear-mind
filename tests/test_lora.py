@@ -2,9 +2,8 @@
 
 import torch
 import torch.nn as nn
-import pytest
 
-from model import ModelConfig, GPT
+from model import GPT
 from training.lora import (
     LoRALinear,
     apply_lora,

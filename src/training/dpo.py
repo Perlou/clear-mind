@@ -98,7 +98,7 @@ class DPOTrainer(BaseTrainer):
             max_steps=self.max_steps,
         )
 
-        print(f"\n📋 DPO 配置:")
+        print("\n📋 DPO 配置:")
         print(f"  β (温度):       {self.beta}")
         print(f"  Batch size:      {self.batch_size}")
         print(f"  Grad accumulate: {self.gradient_accumulation}")
@@ -184,8 +184,6 @@ class DPOTrainer(BaseTrainer):
         # 切分回 chosen / rejected
         B = chosen_ids.shape[0]
         return per_sample[:B], per_sample[B:]
-        # 求和 (每个样本的总对数概率)
-        return token_log_probs.sum(-1)
 
     def _dpo_loss(
         self,

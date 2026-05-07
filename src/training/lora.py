@@ -147,7 +147,7 @@ def apply_lora(
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-    print(f"\n🔧 LoRA 已应用:")
+    print("\n🔧 LoRA 已应用:")
     print(f"  替换层数:    {replaced}")
     print(f"  Rank:        {rank}")
     print(f"  Alpha:       {alpha}")

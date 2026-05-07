@@ -23,7 +23,6 @@ pretrain.py — 预训练 Trainer
 
 import os
 
-import torch
 import torch.nn as nn
 
 from .base_trainer import BaseTrainer
@@ -80,7 +79,7 @@ class PreTrainer(BaseTrainer):
             max_steps=self.max_steps,
         )
 
-        print(f"\n📋 预训练配置:")
+        print("\n📋 预训练配置:")
         print(f"  Batch size:      {self.batch_size}")
         print(f"  Grad accumulate: {self.gradient_accumulation}")
         print(f"  Effective batch: {self.effective_batch_size}")

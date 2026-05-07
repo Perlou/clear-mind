@@ -145,7 +145,7 @@ class TestLoadCheckpoint:
             epoch=2,
             scaler=scaler,
         )
-        original_lr = optimizer.param_groups[0]["lr"]
+        original_lr = optimizer.param_groups[0]["lr"]  # noqa: F841 — 保留以便后续断点恢复 LR 比对
         original_scheduler_step = scheduler.current_step
         original_scaler_scale = scaler._scale
 

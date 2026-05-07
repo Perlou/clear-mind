@@ -11,9 +11,7 @@ from __future__ import annotations
 
 import math
 
-import pytest
 import torch
-import torch.nn.functional as F
 
 
 # ============================================================
@@ -52,7 +50,7 @@ class TestDistillationLoss:
         student = torch.randn(8, 100)
         teacher = torch.randn(8, 100)
 
-        loss_t1 = distillation_loss(student, teacher, temperature=1.0).item()
+        loss_t1 = distillation_loss(student, teacher, temperature=1.0).item()  # noqa: F841 — 保留 baseline 供未来 ratio 比较
         loss_t4 = distillation_loss(student, teacher, temperature=4.0).item()
         # T²=16，但 logits/T 后分布更平滑，KL 本身会变小，所以 loss_t4 不会真的是
         # 16*loss_t1，但应该有限且正

@@ -76,7 +76,7 @@ def precompute_rope_frequencies(
         # YaRN 仅在外推（max_seq_len > original_max）时生效
         if max_seq_len > original_max and factor > 1.0:
             # 计算高/低频边界（按 wavelength 反推维度）
-            inv_dim = lambda b: (
+            inv_dim = lambda b: (  # noqa: E731 — 闭包公式更简洁，避免 def 增加缩进噪音
                 head_dim
                 * math.log(original_max / (b * 2 * math.pi))
                 / (2 * math.log(base))
@@ -201,7 +201,7 @@ if __name__ == "__main__":
         k1 * cos12 + _rotate_half(k1) * sin12
     ).transpose(-2, -1)
 
-    print(f"\n验证相对位置编码特性:")
+    print("\n验证相对位置编码特性:")
     print(f"  位置 (3,5) 的内积: {dot1.item():.6f}")
     print(f"  位置 (10,12) 的内积: {dot2.item():.6f}")
     print(f"  两者相等 (相对距离相同): {torch.allclose(dot1, dot2, atol=1e-5)}")

@@ -11,7 +11,6 @@
 ``hf_tokenizer`` fixture 在缺依赖时自动 skip。
 """
 
-import pytest
 
 
 class TestBasicProps:

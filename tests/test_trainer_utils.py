@@ -2,13 +2,11 @@
 
 import torch
 import torch.nn as nn
-import pytest
 
 from training.trainer_utils import (
     CosineWarmupScheduler,
     EarlyStopping,
     clip_grad_norm,
-    evaluate_loss,
     create_grad_scaler,
 )
 

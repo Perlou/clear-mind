@@ -18,7 +18,6 @@ import os
 import math
 import time
 import json
-from dataclasses import dataclass, field
 from typing import Optional
 
 import torch
@@ -544,7 +543,7 @@ def load_checkpoint(
 
     if optimizer is not None and "optimizer_state_dict" in checkpoint:
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-        print(f"   优化器状态恢复")
+        print("   优化器状态恢复")
 
     if scheduler is not None and "scheduler_step" in checkpoint:
         scheduler.current_step = checkpoint["scheduler_step"]
@@ -552,7 +551,7 @@ def load_checkpoint(
 
     if scaler is not None and "scaler_state_dict" in checkpoint:
         scaler.load_state_dict(checkpoint["scaler_state_dict"])
-        print(f"   GradScaler 状态恢复")
+        print("   GradScaler 状态恢复")
 
     info = {
         "step": int(checkpoint.get("step", 0)),

@@ -86,6 +86,6 @@ if __name__ == "__main__":
     # 对比标准 FFN
     standard_ffn_params = 2 * config.d_model * (4 * config.d_model)
     swiglu_params = 3 * config.d_model * config.d_ff
-    print(f"\n参数量对比 (不含 bias):")
+    print("\n参数量对比 (不含 bias):")
     print(f"  标准 FFN (4×d): {standard_ffn_params / 1e6:.2f}M")
     print(f"  SwiGLU (d_ff={config.d_ff}): {swiglu_params / 1e6:.2f}M")
