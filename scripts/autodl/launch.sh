@@ -104,11 +104,11 @@ if tmux has-session -t "$SESSION" 2>/dev/null; then
     exit 1
 fi
 
-# ---- 内部训练命令（在 tmux 里执行的内容） ----
+# ---- Python 解释器 ----
 PYTHON="${PYTHON:-./venv/bin/python}"
 [[ -x "$PYTHON" ]] || PYTHON="python"
 
-# 构造完整训练命令链
+# ---- 构造各阶段训练命令 ----
 build_cmd() {
     local stage="$1"
     local resume_arg=""
@@ -127,39 +127,88 @@ build_cmd() {
     echo "$PYTHON scripts/train.py --stage $stage --config $CONFIG $resume_arg ${EXTRA_ARGS[*]:-}"
 }
 
-# 把要跑的阶段拼成 shell 字符串（每行 echo + 执行 + 失败立即退出）
-INNER_CMD=""
-INNER_CMD+="set -euo pipefail; "
-INNER_CMD+="cd '$PROJECT_DIR'; "
-INNER_CMD+="echo '== ClearMind 训练启动 ==' ; "
-INNER_CMD+="echo '  规格 : $SCALE  ($CONFIG)' ; "
-INNER_CMD+="echo '  阶段 : $STAGE' ; "
-INNER_CMD+="echo '  开始 : '\$(date '+%F %T') ; "
-INNER_CMD+="echo '  PID  : '\$\$ ; "
-INNER_CMD+="echo \$\$ > '$PID_FILE' ; "
-INNER_CMD+="echo 'running' > '$STATE_FILE' ; "
-INNER_CMD+="trap 'echo failed > $STATE_FILE; echo \"== 训练异常退出 == \"\$(date \"+%F %T\")' ERR; "
+# ---- 生成临时执行脚本（彻底绕开引号嵌套问题） ----
+TMPSCRIPT="${LOG_DIR}/${SESSION}.run.sh"
 
+# 脚本头：固定内容，用 'HEREDOC' 防止变量展开
+cat > "$TMPSCRIPT" << 'HEREDOC'
+#!/usr/bin/env bash
+set -euo pipefail
+
+_on_err() {
+    echo "failed" > "$STATE_FILE"
+    echo "训练异常退出: $(date '+%F %T')"
+}
+trap _on_err ERR
+HEREDOC
+
+# 脚本体：需要变量展开，去掉引号
+cat >> "$TMPSCRIPT" << HEREDOC
+STATE_FILE='$STATE_FILE'
+PID_FILE='$PID_FILE'
+LOG_FILE='$LOG_FILE'
+
+cd '$PROJECT_DIR'
+
+echo '============================================================'
+echo "  规格 : $SCALE  ($CONFIG)"
+echo "  阶段 : $STAGE"
+echo "  开始 : \$(date '+%F %T')"
+echo "  PID  : \$\$"
+echo '============================================================'
+
+echo \$\$ > '$PID_FILE'
+echo 'running' > '$STATE_FILE'
+
+HEREDOC
+
+# 根据阶段追加训练命令
 if [[ "$STAGE" == "all" ]]; then
     PRETRAIN_CMD=$(build_cmd pretrain)
     SFT_CMD=$(build_cmd sft)
     DPO_CMD=$(build_cmd dpo)
-    INNER_CMD+="echo ; echo '>>> [1/3] Pretrain' ; $PRETRAIN_CMD ; "
-    INNER_CMD+="echo ; echo '>>> [2/3] SFT'      ; $SFT_CMD ; "
-    INNER_CMD+="echo ; echo '>>> [3/3] DPO'      ; $DPO_CMD ; "
+    cat >> "$TMPSCRIPT" << HEREDOC
+echo
+echo '>>> [1/3] Pretrain'
+$PRETRAIN_CMD
+
+echo
+echo '>>> [2/3] SFT'
+$SFT_CMD
+
+echo
+echo '>>> [3/3] DPO'
+$DPO_CMD
+
+HEREDOC
 else
     SINGLE_CMD=$(build_cmd "$STAGE")
-    INNER_CMD+="echo ; echo '>>> $STAGE' ; $SINGLE_CMD ; "
+    cat >> "$TMPSCRIPT" << HEREDOC
+echo
+echo '>>> $STAGE'
+$SINGLE_CMD
+
+HEREDOC
 fi
 
-INNER_CMD+="echo done > '$STATE_FILE' ; "
-INNER_CMD+="echo ; echo '== 训练正常完成 == '\$(date '+%F %T') ; "
+# 完成收尾
+cat >> "$TMPSCRIPT" << HEREDOC
+echo 'done' > '$STATE_FILE'
+echo
+echo "== 训练正常完成 == \$(date '+%F %T')"
+HEREDOC
 
-# 自动评估（仅 all/dpo 完成时）
+# 自动评估（仅 all/dpo）
 if [[ "$STAGE" == "all" ]] || [[ "$STAGE" == "dpo" ]]; then
-    INNER_CMD+="echo ; echo '== 自动评估 ==' ; "
-    INNER_CMD+="$PYTHON evaluate/eval_perplexity.py --config $CONFIG --compare 2>&1 | tee -a '$LOG_FILE.eval' || true ; "
+    cat >> "$TMPSCRIPT" << HEREDOC
+echo
+echo '== 自动评估 =='
+$PYTHON evaluate/eval_perplexity.py --config $CONFIG --compare \
+    2>&1 | tee -a '${LOG_FILE}.eval' || true
+HEREDOC
 fi
+
+chmod +x "$TMPSCRIPT"
 
 # ---- 写入 banner 到 log ----
 {
@@ -177,14 +226,14 @@ fi
 # ---- 模式 1：foreground（前台调试用） ----
 if [[ "$FOREGROUND" -eq 1 ]]; then
     echo -e "${CYAN}前台模式（断 SSH 会被杀！）${NC}"
-    bash -c "$INNER_CMD" 2>&1 | tee -a "$LOG_FILE"
+    bash "$TMPSCRIPT" 2>&1 | tee -a "$LOG_FILE"
     exit "${PIPESTATUS[0]}"
 fi
 
 # ---- 模式 2：tmux（默认，断连保护） ----
 if ! command -v tmux &>/dev/null; then
     echo -e "${RED}❌ tmux 未安装；改用 nohup 兜底${NC}"
-    nohup bash -c "$INNER_CMD" >> "$LOG_FILE" 2>&1 &
+    nohup bash "$TMPSCRIPT" >> "$LOG_FILE" 2>&1 &
     NOHUP_PID=$!
     echo "$NOHUP_PID" > "$PID_FILE"
     disown
@@ -193,9 +242,9 @@ if ! command -v tmux &>/dev/null; then
     exit 0
 fi
 
-# tmux：把 stdout 也 pipe 到 LOG_FILE 一份，确保 tmux 死了 log 还在
+# tmux 直接执行脚本文件，不再有任何引号嵌套
 tmux new-session -d -s "$SESSION" \
-    "bash -c \"$INNER_CMD\" 2>&1 | tee -a '$LOG_FILE'"
+    "bash '$TMPSCRIPT' 2>&1 | tee -a '$LOG_FILE'"
 
 # 等 1s 让 tmux 启动稳定
 sleep 1
@@ -204,6 +253,7 @@ if tmux has-session -t "$SESSION" 2>/dev/null; then
     echo -e "${GREEN}${BOLD}✅ 训练已在 tmux 里启动${NC}"
     echo ""
     echo -e "  ${BOLD}Session :${NC} $SESSION"
+    echo -e "  ${BOLD}脚本    :${NC} $TMPSCRIPT"
     echo -e "  ${BOLD}日志    :${NC} $LOG_FILE"
     echo -e "  ${BOLD}PID file:${NC} $PID_FILE"
     echo ""
@@ -226,5 +276,7 @@ if tmux has-session -t "$SESSION" 2>/dev/null; then
     echo -e "${YELLOW}   且 outputs/<stage>/_resume.pth 会让你的训练自动续训。${NC}"
 else
     echo -e "${RED}❌ tmux session 启动失败，请查看 $LOG_FILE${NC}"
+    echo -e "${DIM}生成的临时脚本内容如下：${NC}"
+    cat "$TMPSCRIPT"
     exit 1
 fi
