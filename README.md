@@ -2,7 +2,7 @@
 
 > 从零实现的中文 LLM 训练项目，基于 [minimind](https://github.com/jingyaogong/minimind) 的数据/tokenizer 生态，**通过更扎实的工程基础与若干标准化架构改进追求同等规模的效果反超**，并发布到 HuggingFace 与 ModelScope。
 
-[![Tests](https://img.shields.io/badge/tests-141%20passed-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-147%20passed-brightgreen)]()
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)]()
 [![Status](https://img.shields.io/badge/Phase%201--5-✅-brightgreen)]()
 
@@ -107,7 +107,7 @@ clear-mind/
 │   └── eval_compare.py
 ├── deploy/               # OpenAI 兼容 API + Web demo + Dockerfile
 ├── configs/              # tiny/small/main/plus.yaml
-├── tests/                # 141 个单元测试
+├── tests/                # 147 个单元测试
 └── docs/
     ├── AUTODL_GUIDE.md   # ⭐ 8 步攻略（rent → train → eval → release）
     ├── PRD.md / TECHNICAL_DESIGN.md / PROGRESS_TRACKER.md
@@ -127,10 +127,12 @@ clear-mind/
 ## 🧪 测试
 
 ```bash
-./venv/bin/python -m pytest tests/ -v   # 141 passed
+./venv/bin/python -m pytest tests/ -q   # 147 passed
+./venv/bin/python -m ruff  check src/ scripts/ tests/  # lint 全绿
+./venv/bin/python scripts/smoke_test.py --clean        # 端到端冒烟（CPU/MPS ~5 分钟）
 ```
 
-覆盖：模型前后向 / attention（GQA/KV cache/SWA）/ 配置 / HF tokenizer / 文本生成 / 三种 dataset / DPO loss / Distillation KL / GRPO reward / Rollout 引擎 / LoRA / 训练边界条件 / Resume。
+覆盖：模型前后向 / attention（GQA/KV cache/SWA）/ 配置 / HF tokenizer / 文本生成 / 三种 dataset / DPO loss / Distillation KL / GRPO reward / Rollout 引擎 / LoRA / 训练边界条件 / Resume / RMSNorm bf16 dtype 契约 / DPO max_steps override。
 
 ## 🙏 致谢
 

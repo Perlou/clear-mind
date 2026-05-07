@@ -72,10 +72,10 @@ check_data() {
 echo ""
 echo -e "${CYAN}${BOLD}  📦 选择模型规格:${NC}"
 echo ""
-echo -e "  ${BOLD}1)${NC} Tiny       (~1.5M  参数,  CPU/MPS,  冒烟)"
+echo -e "  ${BOLD}1)${NC} Tiny       (~0.5M  参数,  CPU/MPS,  冒烟)"
 echo -e "  ${BOLD}2)${NC} Small      (~26M   参数,  单卡,   对齐 minimind2-small)"
 echo -e "  ${BOLD}3)${NC} Base       (~68.8M 参数,  A100/A800,  ${BOLD}对标 minimind-3 dense${NC})"
-echo -e "  ${BOLD}4)${NC} Plus       (~486M  参数,  A100/A800 80GB,  ${BOLD}对标 minimind-3-moe${NC})"
+echo -e "  ${BOLD}4)${NC} Plus       (~486.3M 参数,  A100/A800 80GB,  ${BOLD}对标 minimind-3-moe${NC})"
 echo ""
 read -p "  请选择 [1-4, 默认 1]: " scale_choice
 

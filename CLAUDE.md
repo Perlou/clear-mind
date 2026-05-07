@@ -57,7 +57,7 @@ tokenizer/minimind/                # 仓库自带，git 追踪
 
 | 配置 | 参数量 | d_model / heads / kv_heads / layers | d_ff | max_seq_len | 适用 |
 |---|---|---|---|---|---|
-| `configs/tiny.yaml` | ~1.5M | 128 / 4 / 2 / 4 | 448 | 256 | CPU/MPS 冒烟 |
+| `configs/tiny.yaml` | ~0.5M | 64 / 4 / 2 / 2 | 256 | 128 | CPU/MPS 冒烟 |
 | `configs/small.yaml` | ~26M | 512 / 8 / 2 / 8 | 1664 | 1024 | 单卡真训（对齐 minimind2-small） |
 | `configs/main.yaml` | **68.8M** | 768 / 8 / 4 / 8 | 2432 | 1024 | **ClearMind-Base 发布版** |
 | `configs/plus.yaml` | **486.3M** | 1280 / 16 / 4 / 24 | 4032 | 1024 | **ClearMind-Plus 发布版** |
@@ -67,11 +67,15 @@ tokenizer/minimind/                # 仓库自带，git 追踪
 ## 开发命令
 
 ```bash
-# 运行测试
-./venv/bin/python -m pytest tests/ -v
+# 运行测试（147 个，CPU 上 ~3 秒）
+./venv/bin/python -m pytest tests/ -q
 
-# Lint
+# Lint（修自动可修部分；剩余项已加 noqa 镇压）
 ./venv/bin/python -m ruff check src/ scripts/ tests/
+./venv/bin/python -m ruff check src/ scripts/ tests/ --fix
+
+# 端到端冒烟（CPU/MPS 上 5–10 分钟，跑 tiny pretrain → SFT → chat 推理整链路）
+./venv/bin/python scripts/smoke_test.py --clean
 
 # 一键交互式训练（推荐入门）
 bash run.sh
@@ -84,6 +88,12 @@ bash run.sh
 # 自定义 tokenizer（默认 tokenizer/minimind）
 ./venv/bin/python scripts/train.py --stage pretrain --config configs/main.yaml \
     --tokenizer /path/to/another/hf-tokenizer-dir
+
+# AutoDL 上线（断 SSH 不影响）
+bash scripts/autodl/preflight.sh --profile base   # 9 项强制自检
+bash scripts/autodl/launch.sh    base all         # tmux 内全流程
+bash scripts/autodl/status.sh                     # 状态查询
+bash scripts/autodl/save_outputs.sh base          # 归档下载
 ```
 
 ## 已知 bug 修复 / 状态
@@ -101,6 +111,11 @@ bash run.sh
 | Checkpoint 非原子保存 + 全 fp32 落盘 | ✅ 已修复（atomic write + half_weights） |
 | **DPOTrainer 忽略 `config.max_steps`**（yaml 限制无效） | ✅ 已修复 2026-05-02（`src/training/dpo.py:81-89`，对齐 sft.py 写法） |
 | **RMSNorm bf16 输出退化为 fp32**（破坏 autocast dtype 一致性） | ✅ 已修复 2026-05-02（`src/model/normalization.py`，内部 fp32 计算 + `.type_as(x)` 回原 dtype） |
+| **DPO `_compute_log_probs_pair` 末尾 unreachable return** | ✅ 已修复 2026-05-07（`src/training/dpo.py`，删除死代码） |
+| **`config.py __main__` 引用不存在的 `ModelConfig.medium()`** | ✅ 已修复 2026-05-07（改成 tiny/small/main/plus 四档） |
+| **`download_data.py` 末尾推荐已废弃的 `scripts/autodl_train.sh`** | ✅ 已修复 2026-05-07（改推荐 `scripts/autodl/preflight.sh + launch.sh`） |
+| **`requirements.txt` 缺 pytest/ruff/tensorboard，且 transformers 版本未封顶** | ✅ 已修复 2026-05-07（锁 `transformers>=4.40,<5` + 加 dev deps，避免 5.x 与 4.x 行为分叉） |
+| ruff 51 项 lint 错（unused import / 空 f-string / E402 / E731 / F841） | ✅ 已修复 2026-05-07（38 项自动 fix + 13 项 `# noqa` 镇压，零功能改动） |
 
 ## 代码规范
 
@@ -124,12 +139,14 @@ bash run.sh
 
 ## 依赖
 
-主要依赖：
-- 核心：`torch`, `transformers`, `safetensors`, `jinja2`
+主要依赖（见 `requirements.txt`）：
+- 核心：`torch>=2.1`, `transformers>=4.40,<5`（**封顶 5.0**：5.x 在 chat_template / from_pretrained 序列化等处不向后兼容；本地与 AutoDL 必须对齐到 4.x）, `safetensors`, `jinja2`
 - Legacy 路径：`sentencepiece`（与旧 ClearMindTokenizer 共存，但默认不使用）
-- 数据：`datasets`, `pyyaml`, `numpy`, `tqdm`
+- 数据：`datasets`, `pyyaml`, `numpy`, `tqdm`, `modelscope`, `huggingface_hub`
+- 训练监控：`tensorboard`（main/plus.yaml 默认 `use_tensorboard: true`）
+- Dev / preflight：`pytest`, `ruff`（preflight.sh 第 8 步会跑 pytest，缺这两个 preflight 直接报 ERROR）
 
-虚拟环境：`./venv/`（Python 3.10+）
+虚拟环境：`./venv/`（Python 3.10+）。**新克隆后第一步**：`./venv/bin/pip install -r requirements.txt`，否则 preflight 会因为缺 pytest 阻塞。
 
 ## 路线图（与 minimind 对齐 / 超越路径）
 
@@ -137,7 +154,7 @@ bash run.sh
 
 - ✅ **Phase 1**（地基）：bug 修复 + chat_template + DPO 单 forward + RoPE buffer 共享 + 残差初始化 + DataLoader 默认 + 原子 checkpoint
 - ✅ **Phase 2**（架构升级）：QK-Norm + RoPE θ=1e6 + YaRN + d_ff 对齐
-- 🟡 **Phase 3**（训练阶段扩展）：DPO 已完成；白盒蒸馏 / Rollout 引擎 / GRPO/CISPO / PPO / Agentic RL 待补
+- 🟢 **Phase 3**（训练阶段扩展）：Pretrain / SFT / DPO / 白盒蒸馏 / GRPO+CISPO / Rollout 引擎（Torch + SGLang 双 backend）已就绪；PPO / Agentic RL 列入 Phase 3.x 待补
 - ✅ **Phase 4**（工程化）：torch.compile + wandb/swanlab + SkipBatchSampler + **fused AdamW** + **DDP no_sync** + **activation checkpointing**（main/plus.yaml 已默认开启推荐项）
 - ✅ **Phase 5**（发布）：OpenAI 兼容 API server + Qwen3 兼容导出（`convert_to_qwen3.py`）+ safetensors + HF/ModelScope push + **`scripts/release.sh` 端到端流水线**（含 transformers 加载验证）
 - ✅ **Phase E1**（评测）：C-Eval / CMMLU / AlignBench-zh + LLM-as-Judge + 多模型对照（`evaluate/benchmarks/` + `evaluate/judge/` + `eval_compare.py`）
