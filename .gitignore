@@ -1,5 +1,5 @@
 # ==== 数据目录（不上传训练数据，让训练者自行从 minimind_dataset 下载）====
-data/
+data/**
 !data/.gitkeep
 # 保留 src/data/ Python 包不被忽略（与顶层 data/ 同名导致的兼容写法）
 !**/src/data/
