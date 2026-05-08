@@ -7,6 +7,8 @@ torch>=2.1.0
 transformers>=4.40.0,<5
 safetensors>=0.4.0
 modelscope>=1.13.0
-huggingface_hub>=0.24.0,<2   # transformers 的间接依赖
+# 注意：必须 <1.0。huggingface_hub 1.x 是 breaking version，与 transformers 4.x 不兼容
+# （transformers 4.x 内部 require_version_core 检查 huggingface-hub>=0.34.0,<1.0）
+huggingface_hub>=0.34.0,<1.0
 numpy>=1.24.0
 jinja2>=3.1.0                # transformers chat_template 渲染依赖
