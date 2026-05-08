@@ -63,12 +63,12 @@ for k, env in [("ClearMind-Base", "CLEARMIND_REPO_BASE"),
 USE_ZEROGPU = os.environ.get("CLEARMIND_USE_ZEROGPU") == "1"
 
 # ---------- 页面 ----------
-st.set_page_config(page_title="ClearMind", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="ClearMind", initial_sidebar_state="expanded")
 
-# MS 创空间在 iframe 顶部会注入 ~100px 平台 banner（标题/反馈/分享/全屏按钮等），
+# MS 创空间在 iframe 顶部会注入 ~50-60px 平台 banner（标题/反馈/分享/全屏按钮等），
 # 标题区直接被遮；本地或 HF Spaces 则没有此问题。
-# 通过 CLEARMIND_TOP_PAD 显式覆盖；默认 ms=100, 其他=0
-TOP_PAD_PX = int(os.environ.get("CLEARMIND_TOP_PAD", "100" if PLATFORM == "ms" else "0"))
+# 通过 CLEARMIND_TOP_PAD 显式覆盖；默认 ms=50, 其他=0
+TOP_PAD_PX = int(os.environ.get("CLEARMIND_TOP_PAD", "50" if PLATFORM == "ms" else "0"))
 
 st.markdown("""
     <style>
@@ -98,17 +98,42 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 顶部 padding（动态），覆盖默认 streamlit 的负 margin 行为
+# 同时把 chat_input 固定到 viewport 底部，避免 ModelScope iframe 嵌套下 sticky 失效
 st.markdown(
     f"""
     <style>
         .stMainBlockContainer > div:first-child {{
             margin-top: 0 !important;
             padding-top: {TOP_PAD_PX}px !important;
+            padding-bottom: 120px !important;  /* 给底部 chat_input 留出空间，避免最后一条消息被遮 */
         }}
         /* 兼容 streamlit 1.32+ 新结构 */
         section.main > div:first-child,
         [data-testid="stAppViewContainer"] > .main > .block-container {{
             padding-top: {TOP_PAD_PX}px !important;
+            padding-bottom: 120px !important;
+        }}
+        /* chat_input 钉死在 viewport 底部（iframe 嵌套场景下 sticky 不可靠，用 fixed 强制） */
+        [data-testid="stChatInput"], .stChatInput {{
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            z-index: 999 !important;
+            padding: 12px 16px !important;
+            background: var(--background-color, white) !important;
+            border-top: 1px solid rgba(128, 128, 128, 0.15) !important;
+        }}
+        /* 标题区瘦身：减小字号、收紧留白，让首屏能看到对话区 */
+        .clearmind-title {{
+            font-size: 22px !important;
+            line-height: 1.3 !important;
+            margin: 0 !important;
+        }}
+        .clearmind-disclaimer {{
+            font-size: 12px !important;
+            margin-top: 2px !important;
+            margin-bottom: 6px !important;
         }}
     </style>
     """,
@@ -370,10 +395,10 @@ with st.sidebar.expander(get_text("tools")):
 # ---------- 标题 ----------
 st.markdown(
     f'<div style="display: flex; flex-direction: column; align-items: center; text-align: center; margin: 0; padding: 0;">'
-    '<div style="font-style: italic; font-weight: 900; margin: 0; padding-top: 4px; '
+    '<div style="font-style: italic; font-weight: 900; margin: 0; padding-top: 0; '
     'display: flex; align-items: center; justify-content: center; flex-wrap: wrap; width: 100%;">'
-    f'<span style="font-size: 26px;">🧠 {slogan}</span></div>'
-    f'<span style="color: #bbb; font-style: italic; margin-top: 6px; margin-bottom: 10px;">{get_text("disclaimer")}</span>'
+    f'<span class="clearmind-title">🧠 {slogan}</span></div>'
+    f'<span class="clearmind-disclaimer" style="color: #bbb; font-style: italic;">{get_text("disclaimer")}</span>'
     '</div>',
     unsafe_allow_html=True,
 )
