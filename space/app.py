@@ -97,8 +97,8 @@ st.markdown(
         .stApp > div:last-child {
             margin-bottom: -35px !important;
         }
-        .stApp {
-            margin-bottom: 90px !important;
+        .stBottom {
+            bottom: 100px !important;
         }
     </style>
 """,
