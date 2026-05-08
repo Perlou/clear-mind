@@ -40,22 +40,23 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStream
 PLATFORM = os.environ.get("CLEARMIND_PLATFORM", "ms").lower()  # ms / hf
 
 # 注意：HF 用户名 Perlous，ModelScope 用户名 Perlou
-# 当前阶段：base / plus 仍在训练，sidebar 只展示 Plus + Base 两档（Plus 默认）
-# 两档都临时指向 small 占位仓库走通全流程；训完后只需改这里或设环境变量
 DEFAULT_REPOS = {
     "hf": {
         "ClearMind-Plus": "Perlous/ClearMind-Base",  # TODO 训完改回 Perlous/ClearMind-Plus
-        "ClearMind-Base": "Perlous/ClearMind-Base",  # TODO 训完改回 Perlous/ClearMind-Base
+        "ClearMind-Base": "Perlous/ClearMind-Base",
+        "ClearMind-Small": "Perlous/ClearMind-Small",
     },
     "ms": {
         "ClearMind-Plus": "Perlou/ClearMind-Base",  # TODO 训完改回 Perlou/ClearMind-Plus
-        "ClearMind-Base": "Perlou/ClearMind-Base",  # TODO 训完改回 Perlou/ClearMind-Base
+        "ClearMind-Base": "Perlou/ClearMind-Base",
+        "ClearMind-Small": "Perlou/ClearMind-Small",
     },
 }
 
 REPOS = DEFAULT_REPOS.get(PLATFORM, DEFAULT_REPOS["ms"]).copy()
 # 允许通过环境变量覆盖单个规格的 repo id（部署期切换方便）
 for k, env in [
+    ("ClearMind-Small", "CLEARMIND_REPO_Small"),
     ("ClearMind-Base", "CLEARMIND_REPO_BASE"),
     ("ClearMind-Plus", "CLEARMIND_REPO_PLUS"),
 ]:
