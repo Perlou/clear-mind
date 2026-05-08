@@ -1,0 +1,9 @@
+{
+  "framework": "pytorch",
+  "task": "text-generation",
+  "model": [
+    {"path": "Perlou/ClearMind-Small"}
+  ],
+  "allow_remote": true,
+  "license": "Apache License 2.0"
+}

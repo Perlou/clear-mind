@@ -52,3 +52,9 @@ Thumbs.db
 
 # ==== Claude / project state ====
 .claude/settings.local.json
+
+# ==== 本地敏感凭证（HF / ModelScope token 等，绝不入仓库）====
+.env
+.env.local
+.env.*.local
+!.env.example

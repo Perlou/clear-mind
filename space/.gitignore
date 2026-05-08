@@ -1,0 +1,8 @@
+# 部署到 HuggingFace Spaces / ModelScope 创空间忽略本地缓存
+.venv/
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+.streamlit/
+.ipynb_checkpoints/
