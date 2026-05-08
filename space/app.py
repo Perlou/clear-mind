@@ -44,12 +44,12 @@ PLATFORM = os.environ.get("CLEARMIND_PLATFORM", "ms").lower()  # ms / hf
 # 两档都临时指向 small 占位仓库走通全流程；训完后只需改这里或设环境变量
 DEFAULT_REPOS = {
     "hf": {
-        "ClearMind-Plus": "Perlous/ClearMind-Small",  # TODO 训完改回 Perlous/ClearMind-Plus
-        "ClearMind-Base": "Perlous/ClearMind-Small",  # TODO 训完改回 Perlous/ClearMind-Base
+        "ClearMind-Plus": "Perlous/ClearMind-Base",  # TODO 训完改回 Perlous/ClearMind-Plus
+        "ClearMind-Base": "Perlous/ClearMind-Base",  # TODO 训完改回 Perlous/ClearMind-Base
     },
     "ms": {
-        "ClearMind-Plus": "Perlou/ClearMind-Small",  # TODO 训完改回 Perlou/ClearMind-Plus
-        "ClearMind-Base": "Perlou/ClearMind-Small",  # TODO 训完改回 Perlou/ClearMind-Base
+        "ClearMind-Plus": "Perlou/ClearMind-Base",  # TODO 训完改回 Perlou/ClearMind-Plus
+        "ClearMind-Base": "Perlou/ClearMind-Base",  # TODO 训完改回 Perlou/ClearMind-Base
     },
 }
 
@@ -97,8 +97,8 @@ st.markdown(
         .stApp > div:last-child {
             margin-bottom: -35px !important;
         }
-        .stBottom {
-            bottom: 100px !important;
+        .stBottom > div:first-child {
+            bottom: 50px !important;
         }
     </style>
 """,
@@ -111,13 +111,12 @@ st.markdown(
     f"""
     <style>
         .stMainBlockContainer > div:first-child {{
-            margin-top: 0 !important;
-            padding-top: {TOP_PAD_PX}px !important;
+            margin-top: -50px !important;
         }}
         /* 兼容 streamlit 1.32+ 新结构 */
         section.main > div:first-child,
         [data-testid="stAppViewContainer"] > .main > .block-container {{
-            padding-top: {TOP_PAD_PX}px !important;
+            padding-top: 0px !important;
         }}
     </style>
     """,
