@@ -44,19 +44,21 @@ PLATFORM = os.environ.get("CLEARMIND_PLATFORM", "ms").lower()  # ms / hf
 # 两档都临时指向 small 占位仓库走通全流程；训完后只需改这里或设环境变量
 DEFAULT_REPOS = {
     "hf": {
-        "ClearMind-Plus":  "Perlous/ClearMind-Small",   # TODO 训完改回 Perlous/ClearMind-Plus
-        "ClearMind-Base":  "Perlous/ClearMind-Small",   # TODO 训完改回 Perlous/ClearMind-Base
+        "ClearMind-Plus": "Perlous/ClearMind-Small",  # TODO 训完改回 Perlous/ClearMind-Plus
+        "ClearMind-Base": "Perlous/ClearMind-Small",  # TODO 训完改回 Perlous/ClearMind-Base
     },
     "ms": {
-        "ClearMind-Plus":  "Perlou/ClearMind-Small",    # TODO 训完改回 Perlou/ClearMind-Plus
-        "ClearMind-Base":  "Perlou/ClearMind-Small",    # TODO 训完改回 Perlou/ClearMind-Base
+        "ClearMind-Plus": "Perlou/ClearMind-Small",  # TODO 训完改回 Perlou/ClearMind-Plus
+        "ClearMind-Base": "Perlou/ClearMind-Small",  # TODO 训完改回 Perlou/ClearMind-Base
     },
 }
 
 REPOS = DEFAULT_REPOS.get(PLATFORM, DEFAULT_REPOS["ms"]).copy()
 # 允许通过环境变量覆盖单个规格的 repo id（部署期切换方便）
-for k, env in [("ClearMind-Base", "CLEARMIND_REPO_BASE"),
-               ("ClearMind-Plus", "CLEARMIND_REPO_PLUS")]:
+for k, env in [
+    ("ClearMind-Base", "CLEARMIND_REPO_BASE"),
+    ("ClearMind-Plus", "CLEARMIND_REPO_PLUS"),
+]:
     if os.environ.get(env):
         REPOS[k] = os.environ[env]
 
@@ -70,7 +72,8 @@ st.set_page_config(page_title="ClearMind", initial_sidebar_state="expanded")
 # 通过 CLEARMIND_TOP_PAD 显式覆盖；默认 ms=50, 其他=0
 TOP_PAD_PX = int(os.environ.get("CLEARMIND_TOP_PAD", "50" if PLATFORM == "ms" else "0"))
 
-st.markdown("""
+st.markdown(
+    """
     <style>
         .stButton button {
             border-radius: 50% !important;
@@ -94,8 +97,13 @@ st.markdown("""
         .stApp > div:last-child {
             margin-bottom: -35px !important;
         }
+        .stBottom {
+            bottom: 100px !important;
+        }
     </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 # 顶部 padding（动态），覆盖默认 streamlit 的负 margin 行为
 # 不强制 chat_input fixed（fixed 在 ModelScope iframe 嵌套下会破坏 streamlit 自身布局）
@@ -160,34 +168,134 @@ def get_text(key: str) -> str:
 
 # ---------- 工具定义（与 minimind 完全一致） ----------
 TOOLS = [
-    {"type": "function", "function": {"name": "calculate_math", "description": "计算数学表达式",
-        "parameters": {"type": "object", "properties": {"expression": {"type": "string", "description": "数学表达式"}}, "required": ["expression"]}}},
-    {"type": "function", "function": {"name": "get_current_time", "description": "获取当前时间",
-        "parameters": {"type": "object", "properties": {"timezone": {"type": "string", "default": "Asia/Shanghai"}}, "required": []}}},
-    {"type": "function", "function": {"name": "random_number", "description": "生成随机数",
-        "parameters": {"type": "object", "properties": {"min": {"type": "integer"}, "max": {"type": "integer"}}, "required": ["min", "max"]}}},
-    {"type": "function", "function": {"name": "text_length", "description": "计算文本长度",
-        "parameters": {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]}}},
-    {"type": "function", "function": {"name": "unit_converter", "description": "单位转换",
-        "parameters": {"type": "object", "properties": {"value": {"type": "number"}, "from_unit": {"type": "string"}, "to_unit": {"type": "string"}}, "required": ["value", "from_unit", "to_unit"]}}},
-    {"type": "function", "function": {"name": "get_current_weather", "description": "获取天气",
-        "parameters": {"type": "object", "properties": {"city": {"type": "string"}}, "required": ["city"]}}},
-    {"type": "function", "function": {"name": "get_exchange_rate", "description": "获取汇率",
-        "parameters": {"type": "object", "properties": {"from_currency": {"type": "string"}, "to_currency": {"type": "string"}}, "required": ["from_currency", "to_currency"]}}},
-    {"type": "function", "function": {"name": "translate_text", "description": "翻译文本",
-        "parameters": {"type": "object", "properties": {"text": {"type": "string"}, "target_lang": {"type": "string"}}, "required": ["text", "target_lang"]}}},
+    {
+        "type": "function",
+        "function": {
+            "name": "calculate_math",
+            "description": "计算数学表达式",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "expression": {"type": "string", "description": "数学表达式"}
+                },
+                "required": ["expression"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_current_time",
+            "description": "获取当前时间",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "timezone": {"type": "string", "default": "Asia/Shanghai"}
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "random_number",
+            "description": "生成随机数",
+            "parameters": {
+                "type": "object",
+                "properties": {"min": {"type": "integer"}, "max": {"type": "integer"}},
+                "required": ["min", "max"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "text_length",
+            "description": "计算文本长度",
+            "parameters": {
+                "type": "object",
+                "properties": {"text": {"type": "string"}},
+                "required": ["text"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "unit_converter",
+            "description": "单位转换",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "value": {"type": "number"},
+                    "from_unit": {"type": "string"},
+                    "to_unit": {"type": "string"},
+                },
+                "required": ["value", "from_unit", "to_unit"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_current_weather",
+            "description": "获取天气",
+            "parameters": {
+                "type": "object",
+                "properties": {"city": {"type": "string"}},
+                "required": ["city"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_exchange_rate",
+            "description": "获取汇率",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "from_currency": {"type": "string"},
+                    "to_currency": {"type": "string"},
+                },
+                "required": ["from_currency", "to_currency"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "translate_text",
+            "description": "翻译文本",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "text": {"type": "string"},
+                    "target_lang": {"type": "string"},
+                },
+                "required": ["text", "target_lang"],
+            },
+        },
+    },
 ]
 
 TOOL_SHORT_NAMES = {
-    "calculate_math": "数学", "get_current_time": "时间", "random_number": "随机",
-    "text_length": "字数", "unit_converter": "单位", "get_current_weather": "天气",
-    "get_exchange_rate": "汇率", "translate_text": "翻译",
+    "calculate_math": "数学",
+    "get_current_time": "时间",
+    "random_number": "随机",
+    "text_length": "字数",
+    "unit_converter": "单位",
+    "get_current_weather": "天气",
+    "get_exchange_rate": "汇率",
+    "translate_text": "翻译",
 }
 
 
 def execute_tool(tool_name: str, args: dict) -> dict:
     """Mock 工具实现 —— 仅作演示，真实集成请替换。"""
     import datetime
+
     try:
         if tool_name == "calculate_math":
             # 警告：eval 仅作 demo；生产环境请用 ast.literal_eval 或安全表达式解析器
@@ -199,11 +307,15 @@ def execute_tool(tool_name: str, args: dict) -> dict:
         elif tool_name == "text_length":
             return {"result": len(args.get("text", ""))}
         elif tool_name == "unit_converter":
-            return {"result": f"{args.get('value', 0)} {args.get('from_unit', '')} = ? {args.get('to_unit', '')} (mock)"}
+            return {
+                "result": f"{args.get('value', 0)} {args.get('from_unit', '')} = ? {args.get('to_unit', '')} (mock)"
+            }
         elif tool_name == "get_current_weather":
             return {"result": f"{args.get('city', 'Unknown')}: 晴, 7~10°C (mock)"}
         elif tool_name == "get_exchange_rate":
-            return {"result": f"1 {args.get('from_currency', 'USD')} = 7.2 {args.get('to_currency', 'CNY')} (mock)"}
+            return {
+                "result": f"1 {args.get('from_currency', 'USD')} = 7.2 {args.get('to_currency', 'CNY')} (mock)"
+            }
         elif tool_name == "translate_text":
             return {"result": f"[mock translation of: {args.get('text', '')[:30]}]"}
         return {"result": "Unknown tool"}
@@ -215,6 +327,7 @@ def execute_tool(tool_name: str, args: dict) -> dict:
 def process_assistant_content(content: str, is_streaming: bool = False) -> str:
     # ToolCall 块
     if "<tool_call>" in content:
+
         def fmt_tc(match):
             try:
                 tc = json.loads(match.group(1))
@@ -224,15 +337,22 @@ def process_assistant_content(content: str, is_streaming: bool = False) -> str:
                     '<div style="background: rgba(80, 110, 150, 0.20); border: 1px solid rgba(140, 170, 210, 0.30); '
                     'padding: 10px 12px; border-radius: 12px; margin: 6px 0;">'
                     '<div style="font-size:12px;opacity:.75;display:block;margin:0 0 6px 0;line-height:1;">ToolCalling</div>'
-                    f'<div><b>{name}</b>: {json.dumps(args, ensure_ascii=False)}</div></div>'
+                    f"<div><b>{name}</b>: {json.dumps(args, ensure_ascii=False)}</div></div>"
                 )
             except Exception:
                 return match.group(0)
-        content = re.sub(r"<tool_call>(.*?)</tool_call>", fmt_tc, content, flags=re.DOTALL)
+
+        content = re.sub(
+            r"<tool_call>(.*?)</tool_call>", fmt_tc, content, flags=re.DOTALL
+        )
 
     # 流式生成 + open_thinking 早期，把整段当成"思考中"
-    if is_streaming and st.session_state.get("enable_thinking", False) \
-            and "</think>" not in content and "<think>" not in content:
+    if (
+        is_streaming
+        and st.session_state.get("enable_thinking", False)
+        and "</think>" not in content
+        and "<think>" not in content
+    ):
         m = re.search(r"(\n\n(?:我是|您好|你好)[^\n]*)", content)
         if m and m.start(1) > 5:
             i = m.start(1)
@@ -242,7 +362,7 @@ def process_assistant_content(content: str, is_streaming: bool = False) -> str:
                 '<details open style="border-left: 2px solid #666; padding-left: 12px; margin: 8px 0;">'
                 '<summary style="cursor: pointer; color: #888;">已思考</summary>'
                 '<div style="color: #aaa; font-size: 0.95em; margin-top: 8px; max-height: 100px; overflow-y: auto;">'
-                f'{think_part.strip()}</div></details>{answer_part}'
+                f"{think_part.strip()}</div></details>{answer_part}"
             )
         elif len(content) > 5:
             return (
@@ -255,6 +375,7 @@ def process_assistant_content(content: str, is_streaming: bool = False) -> str:
 
     # <think>...</think> 完整匹配
     if "<think>" in content and "</think>" in content:
+
         def fmt_think(match):
             tc = match.group(2)
             if tc.replace("\n", "").strip():
@@ -262,13 +383,17 @@ def process_assistant_content(content: str, is_streaming: bool = False) -> str:
                     '<details open style="border-left: 2px solid #666; padding-left: 12px; margin: 8px 0;">'
                     '<summary style="cursor: pointer; color: #888;">已思考</summary>'
                     '<div style="color: #aaa; font-size: 0.95em; margin-top: 8px; max-height: 100px; overflow-y: auto;">'
-                    f'{tc.strip()}</div></details>'
+                    f"{tc.strip()}</div></details>"
                 )
             return ""
-        content = re.sub(r"(<think>)(.*?)(</think>)", fmt_think, content, flags=re.DOTALL)
+
+        content = re.sub(
+            r"(<think>)(.*?)(</think>)", fmt_think, content, flags=re.DOTALL
+        )
 
     # <think> 开始但还没闭合
     if "<think>" in content and "</think>" not in content:
+
         def fmt_in_progress(match):
             tc = match.group(1)
             return (
@@ -278,10 +403,12 @@ def process_assistant_content(content: str, is_streaming: bool = False) -> str:
                 'display: flex; flex-direction: column-reverse;">'
                 f'<div style="margin-bottom: auto;">{tc.strip().replace(chr(10), "<br>")}</div></div></details>'
             )
+
         content = re.sub(r"<think>(.*?)$", fmt_in_progress, content, flags=re.DOTALL)
 
     # 仅有 </think>
     if "<think>" not in content and "</think>" in content:
+
         def fmt_no_start(match):
             tc = match.group(1)
             if tc.replace("\n", "").strip():
@@ -289,9 +416,10 @@ def process_assistant_content(content: str, is_streaming: bool = False) -> str:
                     '<details open style="border-left: 2px solid #666; padding-left: 12px; margin: 8px 0;">'
                     '<summary style="cursor: pointer; color: #888;">已思考</summary>'
                     '<div style="color: #aaa; font-size: 0.95em; margin-top: 8px; max-height: 100px; overflow-y: auto;">'
-                    f'{tc.strip()}</div></details>'
+                    f"{tc.strip()}</div></details>"
                 )
             return ""
+
         content = re.sub(r"(.*?)</think>", fmt_no_start, content, flags=re.DOTALL)
 
     return content
@@ -304,6 +432,7 @@ def load_model_tokenizer(repo_id: str):
     if PLATFORM == "ms":
         # ModelScope SDK 入口
         from modelscope import AutoModelForCausalLM as MSModel, AutoTokenizer as MSTok
+
         tokenizer = MSTok.from_pretrained(repo_id, trust_remote_code=True)
         model = MSModel.from_pretrained(repo_id, trust_remote_code=True)
     else:
@@ -318,7 +447,9 @@ def load_model_tokenizer(repo_id: str):
 
 # ---------- Sidebar ----------
 selected_model = st.sidebar.selectbox(
-    LANG_TEXTS["zh"]["model"], list(REPOS.keys()), index=0   # Plus 排第一，默认选中
+    LANG_TEXTS["zh"]["model"],
+    list(REPOS.keys()),
+    index=0,  # Plus 排第一，默认选中
 )
 model_repo = REPOS[selected_model]
 
@@ -342,9 +473,15 @@ if lang_options[lang_label] != current_lang:
 st.sidebar.markdown('<hr style="margin: 12px 0 16px 0;">', unsafe_allow_html=True)
 
 # 参数
-st.session_state.history_chat_num = st.sidebar.slider(get_text("history_rounds"), 0, 8, 0, step=2)
-st.session_state.max_new_tokens = st.sidebar.slider(get_text("max_length"), 128, 2048, 512, step=64)
-st.session_state.temperature = st.sidebar.slider(get_text("temperature"), 0.6, 1.2, 0.90, step=0.01)
+st.session_state.history_chat_num = st.sidebar.slider(
+    get_text("history_rounds"), 0, 8, 0, step=2
+)
+st.session_state.max_new_tokens = st.sidebar.slider(
+    get_text("max_length"), 128, 2048, 512, step=64
+)
+st.session_state.temperature = st.sidebar.slider(
+    get_text("temperature"), 0.6, 1.2, 0.90, step=0.01
+)
 
 st.sidebar.markdown('<hr style="margin: 12px 0 16px 0;">', unsafe_allow_html=True)
 
@@ -362,8 +499,11 @@ with st.sidebar.expander(get_text("tools")):
         name = tool["function"]["name"]
         short = TOOL_SHORT_NAMES.get(name, name)
         checked = st.checkbox(
-            short, key=f"tool_{name}",
-            disabled=(selected_count >= 4 and not st.session_state.get(f"tool_{name}", False)),
+            short,
+            key=f"tool_{name}",
+            disabled=(
+                selected_count >= 4 and not st.session_state.get(f"tool_{name}", False)
+            ),
         )
         if checked and len(st.session_state.selected_tools) < 4:
             st.session_state.selected_tools.append(name)
@@ -375,7 +515,7 @@ st.markdown(
     'display: flex; align-items: center; justify-content: center; flex-wrap: wrap; width: 100%;">'
     f'<span style="font-size: 26px;">🧠 {slogan}</span></div>'
     f'<span style="color: #bbb; font-style: italic; margin-top: 6px; margin-bottom: 10px;">{get_text("disclaimer")}</span>'
-    '</div>',
+    "</div>",
     unsafe_allow_html=True,
 )
 
@@ -396,15 +536,20 @@ def maybe_zerogpu(func):
         return func
     try:
         import spaces  # type: ignore
+
         return spaces.GPU(duration=60)(func)
     except ImportError:
         return func
 
 
 @maybe_zerogpu
-def stream_generate(model, tokenizer, prompt_ids, attention_mask, temperature, max_new_tokens):
+def stream_generate(
+    model, tokenizer, prompt_ids, attention_mask, temperature, max_new_tokens
+):
     """启动后台线程做 generate，主线程从 streamer 读 token。"""
-    streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
+    streamer = TextIteratorStreamer(
+        tokenizer, skip_prompt=True, skip_special_tokens=True
+    )
     generation_kwargs = dict(
         input_ids=prompt_ids,
         attention_mask=attention_mask,
@@ -453,7 +598,7 @@ def main():
         f'background-color: #3d4450; border-radius: 22px; color: white;">{prompt}</div></div>',
         unsafe_allow_html=True,
     )
-    user_msg = {"role": "user", "content": prompt[-st.session_state.max_new_tokens:]}
+    user_msg = {"role": "user", "content": prompt[-st.session_state.max_new_tokens :]}
     messages.append(user_msg)
     st.session_state.chat_messages.append(user_msg)
 
@@ -461,13 +606,24 @@ def main():
     setup_seed(random.randint(0, 2**32 - 1))
 
     # 工具 / system prompt
-    tools = [t for t in TOOLS if t["function"]["name"] in st.session_state.get("selected_tools", [])] or None
-    sys_prompt = [] if tools else [{
-        "role": "system",
-        "content": "你是 ClearMind，一个从零训练的中文小语言模型。请用完整且友好的方式回答用户问题。",
-    }]
+    tools = [
+        t
+        for t in TOOLS
+        if t["function"]["name"] in st.session_state.get("selected_tools", [])
+    ] or None
+    sys_prompt = (
+        []
+        if tools
+        else [
+            {
+                "role": "system",
+                "content": "你是 ClearMind，一个从零训练的中文小语言模型。请用完整且友好的方式回答用户问题。",
+            }
+        ]
+    )
     st.session_state.chat_messages = (
-        sys_prompt + st.session_state.chat_messages[-(st.session_state.history_chat_num + 1):]
+        sys_prompt
+        + st.session_state.chat_messages[-(st.session_state.history_chat_num + 1) :]
     )
 
     template_kwargs = {"tokenize": False, "add_generation_prompt": True}
@@ -476,13 +632,21 @@ def main():
     if tools:
         template_kwargs["tools"] = tools
 
-    new_prompt = tokenizer.apply_chat_template(st.session_state.chat_messages, **template_kwargs)
-    inputs = tokenizer(new_prompt, return_tensors="pt", truncation=True, return_token_type_ids=False).to(device)
+    new_prompt = tokenizer.apply_chat_template(
+        st.session_state.chat_messages, **template_kwargs
+    )
+    inputs = tokenizer(
+        new_prompt, return_tensors="pt", truncation=True, return_token_type_ids=False
+    ).to(device)
 
     # 第一轮生成
     streamer = stream_generate(
-        model, tokenizer, inputs.input_ids, inputs.attention_mask,
-        st.session_state.temperature, st.session_state.max_new_tokens,
+        model,
+        tokenizer,
+        inputs.input_ids,
+        inputs.attention_mask,
+        st.session_state.temperature,
+        st.session_state.max_new_tokens,
     )
     answer = ""
     for new_text in streamer:
@@ -510,21 +674,33 @@ def main():
                     '<div style="background: rgba(90, 130, 110, 0.20); border: 1px solid rgba(150, 200, 170, 0.30); '
                     'padding: 10px 12px; border-radius: 12px; margin: 6px 0;">'
                     '<div style="font-size:12px;opacity:.75;display:block;margin:0 0 6px 0;line-height:1;">ToolCalled</div>'
-                    f'<div><b>{tc.get("name", "")}</b>: {json.dumps(result, ensure_ascii=False)}</div></div>'
+                    f"<div><b>{tc.get('name', '')}</b>: {json.dumps(result, ensure_ascii=False)}</div></div>"
                 )
             except Exception:
                 pass
         full_answer += "\n" + "\n".join(tool_results_html) + "\n"
         placeholder.markdown(
-            process_assistant_content(full_answer, is_streaming=True), unsafe_allow_html=True
+            process_assistant_content(full_answer, is_streaming=True),
+            unsafe_allow_html=True,
         )
 
         # 把工具结果送回模型继续生成
-        new_prompt = tokenizer.apply_chat_template(st.session_state.chat_messages, **template_kwargs)
-        inputs = tokenizer(new_prompt, return_tensors="pt", truncation=True, return_token_type_ids=False).to(device)
+        new_prompt = tokenizer.apply_chat_template(
+            st.session_state.chat_messages, **template_kwargs
+        )
+        inputs = tokenizer(
+            new_prompt,
+            return_tensors="pt",
+            truncation=True,
+            return_token_type_ids=False,
+        ).to(device)
         streamer = stream_generate(
-            model, tokenizer, inputs.input_ids, inputs.attention_mask,
-            st.session_state.temperature, st.session_state.max_new_tokens,
+            model,
+            tokenizer,
+            inputs.input_ids,
+            inputs.attention_mask,
+            st.session_state.temperature,
+            st.session_state.max_new_tokens,
         )
         answer = ""
         for new_text in streamer:

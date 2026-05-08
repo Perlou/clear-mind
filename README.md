@@ -1,21 +1,80 @@
 # 🧠 ClearMind
 
-> 从零实现的中文 LLM 训练项目，基于 [minimind](https://github.com/jingyaogong/minimind) 的数据/tokenizer 生态，**通过更扎实的工程基础与若干标准化架构改进追求同等规模的效果反超**，并发布到 HuggingFace 与 ModelScope。
+> 从零实现的中文 dense LLM。复用 [minimind](https://github.com/jingyaogong/minimind) 数据/tokenizer 生态，做架构升级与工程标准化，发布到 HuggingFace 和 ModelScope。
 
+[![Demo](https://img.shields.io/badge/🎬_Demo-ModelScope-blue)](https://www.modelscope.cn/studios/Perlou/ClearMind-Demo)
 [![Tests](https://img.shields.io/badge/tests-147%20passed-brightgreen)]()
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)]()
-[![Status](https://img.shields.io/badge/Phase%201--5-✅-brightgreen)]()
 
-## 🎯 发布矩阵
+---
 
-| 模型 | 参数量 | 对标 | 推荐显卡 | 训练时长 | 总成本 | Config |
-|---|---|---|---|---|---|---|
-| **ClearMind-Base** | **68.8M** dense | minimind-3 (64M dense) | RTX 4090 24G | ~28-32h | **¥65-80** | `configs/main.yaml` |
-| **ClearMind-Plus** | **486.3M** dense | minimind-3-moe (198M-A64M) | A100-PCIE 40G | ~45-55h | **¥155-200** | `configs/plus.yaml` |
+## 🎬 在线演示
 
-两个模型共享同一份训练代码、tokenizer、数据，仅 yaml 规格不同。完整成本/选型分析见 [docs/AUTODL_GUIDE.md](docs/AUTODL_GUIDE.md#step-1--注册-autodl--选-gpu)。
+**👉 [https://www.modelscope.cn/studios/Perlou/ClearMind-Demo](https://www.modelscope.cn/studios/Perlou/ClearMind-Demo)**
 
-## 🚀 一键上手
+可选 Base / Plus，支持自适应思考（`<think>`）、工具调用、流式输出、中英双语 UI。
+
+## 📦 模型仓库
+
+| 规格 | 参数 | ModelScope（国内推荐） | HuggingFace |
+|---|---|---|---|
+| **ClearMind-Base** | **68.8M** dense | [Perlou/ClearMind-Base](https://www.modelscope.cn/models/Perlou/ClearMind-Base) | [Perlous/ClearMind-Base](https://huggingface.co/Perlous/ClearMind-Base) |
+| **ClearMind-Plus** | **486.3M** dense | [Perlou/ClearMind-Plus](https://www.modelscope.cn/models/Perlou/ClearMind-Plus) | [Perlous/ClearMind-Plus](https://huggingface.co/Perlous/ClearMind-Plus) |
+
+## 🚀 快速使用
+
+```python
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
+
+repo = "Perlous/ClearMind-Base"   # 或 Perlous/ClearMind-Plus
+tok = AutoTokenizer.from_pretrained(repo, trust_remote_code=True)
+m = AutoModelForCausalLM.from_pretrained(repo, trust_remote_code=True, dtype=torch.float16)
+
+messages = [{"role": "user", "content": "你好，介绍一下你自己"}]
+prompt = tok.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+inputs = tok(prompt, return_tensors="pt", return_token_type_ids=False)
+out = m.generate(**inputs, max_new_tokens=200, do_sample=True, temperature=0.7, top_p=0.9)
+print(tok.decode(out[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True))
+```
+
+> 国内用户走 ModelScope：`from modelscope import AutoModelForCausalLM, AutoTokenizer` + `repo = "Perlou/ClearMind-Base"`
+
+---
+
+## 🎯 与 MiniMind 的关系
+
+ClearMind 复用 MiniMind 的 tokenizer（vocab=6400，含 `<|im_start|>` / `<|im_end|>` / `<tool_call>` / `<think>`）和数据生态，**在同等规模追求效果反超**：
+
+- **架构升级**：QK-Norm + RoPE θ=1e6 + YaRN 长上下文 + GQA + KV Cache + SDPA + 残差 1/√(2L) 缩放
+- **工程标准化**：BaseTrainer 抽象 + val split + EarlyStopping + 原子 checkpoint + 参数分组 weight decay + torch.compile + fused AdamW + DDP no_sync + activation checkpointing
+- **关键 bug 修复**：attention_mask `0*inf=NaN`、SFT loss-mask BPE 边界错位、RoPE buffer 共享、RMSNorm bf16 dtype 一致性、DPO `max_steps` 生效
+- **完整发布管线**：safetensors + Qwen3 兼容导出 + HF/MS 双发 + OpenAI 兼容 API + Streamlit Demo + AutoDL 一键工具链
+
+## 🏗️ 架构
+
+```
+Token IDs → Embedding → N × TransformerBlock → RMSNorm → LM Head → Logits
+                          ├─ RMSNorm + QK-Norm → MHA/GQA + RoPE(θ=1e6, YaRN) + KV Cache + SDPA
+                          └─ RMSNorm → SwiGLU FFN
+```
+
+发布时通过 `scripts/convert_to_qwen3.py` 把训练态 GPT 转成 `Qwen3ForCausalLM` 格式 → `transformers` / `vLLM` / `Ollama (GGUF)` 即用，键名映射 `w_q/w_k/w_v/w_o → q_proj/k_proj/v_proj/o_proj`。
+
+## 📐 配置矩阵
+
+| Config | 参数 | d_model / heads / kv / layers | d_ff | seq_len | 用途 |
+|---|---|---|---|---|---|
+| `tiny.yaml` | 0.5M | 64 / 4 / 2 / 2 | 256 | 128 | CPU/MPS 冒烟（5 min） |
+| `small.yaml` | 26M | 512 / 8 / 2 / 8 | 1664 | 1024 | 单卡验证（30-60 min） |
+| **`main.yaml`** | **68.8M** | 768 / 8 / 4 / 8 | 2432 | 1024 | **ClearMind-Base 发布版** |
+| **`plus.yaml`** | **486.3M** | 1280 / 16 / 4 / 24 | 4032 | 1024 | **ClearMind-Plus 发布版** |
+
+`d_ff = ⌈d_model · π / 64⌉ · 64`（minimind / Qwen3 风格 TensorCore 对齐）。
+
+---
+
+## 🛠️ 一键工作流
 
 ```bash
 # 1) 环境
@@ -23,127 +82,84 @@ git clone <this-repo> && cd clear-mind
 python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 
-# 2) 数据（从 minimind 镜像下载，国内推荐 modelscope）
+# 2) 数据（从 minimind_dataset 镜像，国内推荐 modelscope）
 python scripts/download_data.py --profile base --source modelscope
 
-# 3) 本地 5 分钟冒烟（CPU/MPS 即可）
-bash run.sh                                # 交互式：选 Tiny → 全流程
+# 3) 本地冒烟（CPU/MPS 即可）
+bash run.sh                        # 交互式
+python scripts/smoke_test.py --clean   # 端到端 ~5 min
 
 # 4) AutoDL 正式训练（断 SSH 不影响）
-bash scripts/autodl/preflight.sh --profile base    # 9 项强制自检
-bash scripts/autodl/launch.sh tiny  all            # 5 min 冒烟
-bash scripts/autodl/launch.sh small all            # 30 min 验证
-bash scripts/autodl/launch.sh base  all            # 12-18h 正式
+bash scripts/autodl/preflight.sh --profile base
+bash scripts/autodl/launch.sh base all       # ~8h 全流程
+bash scripts/autodl/launch.sh plus all       # ~32h 全流程
 
 # 5) 评估
 python evaluate/benchmarks/ceval.py --config configs/main.yaml
 python evaluate/benchmarks/cmmlu.py --config configs/main.yaml
 python evaluate/benchmarks/alignbench.py --config configs/main.yaml
 
-# 6) 发布到 HF / ModelScope
-bash scripts/release.sh base --stage dpo --push-hf you/ClearMind-Base
+# 6) 发布到 HF + ModelScope
+bash scripts/release.sh base \
+    --push-hf Perlous/ClearMind-Base \
+    --push-ms Perlou/ClearMind-Base
 ```
-
-## 🏗️ 架构
-
-```
-Token IDs ──► Embedding ──► N × TransformerBlock ──► RMSNorm ──► LM Head ──► Logits
-                              ├─ RMSNorm + (QK-Norm) → MHA/GQA + RoPE(θ=1e6,YaRN) + KV Cache + SDPA
-                              └─ RMSNorm → SwiGLU FFN
-```
-
-- **位置编码**：RoPE θ=1e6（Qwen3 对齐），可选 YaRN 长上下文外推
-- **归一化**：RMSNorm + QK-Norm（Llama-3 / Gemma2 同款）
-- **注意力**：GQA + KV Cache + Sliding Window + Flash Attention（SDPA 自动选）
-- **FFN**：SwiGLU，`d_ff = ⌈d_model · π / 64⌉ · 64`（TensorCore 对齐）
-- **残差初始化**：1/√(2L) 缩放（GPT-2/Llama 标准做法）
-- **Tokenizer**：复用 minimind ByteLevel BPE（vocab=6400）
-- **发布**：训练用 ClearMind GPT，发布时通过 `convert_to_qwen3.py` 转 Qwen3ForCausalLM 兼容 → ollama / vllm / llama.cpp 即用
-
-## 📐 配置矩阵
-
-| Config | 参数 | d_model / heads / kv_heads / layers | d_ff | seq_len | 用途 |
-|---|---|---|---|---|---|
-| `tiny.yaml` | 0.5M | 64 / 4 / 2 / 2 | 256 | 128 | CPU/MPS 冒烟 |
-| `small.yaml` | 26M | 512 / 8 / 2 / 8 | 1664 | 1024 | 单卡（对齐 minimind2-small） |
-| `main.yaml` | **68.8M** | 768 / 8 / 4 / 8 | 2432 | 1024 | **ClearMind-Base 发布版** |
-| `plus.yaml` | **486.3M** | 1280 / 16 / 4 / 24 | 4032 | 1024 | **ClearMind-Plus 发布版** |
-
-## ✅ 完成度
-
-| Phase | 状态 | 说明 |
-|---|---|---|
-| 重构 1: 数据 + tokenizer | ✅ | HF tokenizer + chat_template + minimind 数据生态 |
-| 重构 2: scripts/eval/deploy | ✅ | 统一入口 + 评测 + API 服务 |
-| Phase 1: 地基 bugfix | ✅ | NaN 三层防御 + RoPE buffer 共享 + 残差缩放 + 原子 ckpt |
-| Phase 2: 架构升级 | ✅ | QK-Norm + RoPE θ=1e6 + YaRN + d_ff 对齐 |
-| Phase 3: 训练扩展 | 🟢 | DPO ✅ Distillation ✅ GRPO+CISPO ✅ Rollout 引擎 ✅（PPO/Agentic RL 待补） |
-| Phase 4: 工程化 | ✅ | torch.compile + fused AdamW + DDP no_sync + activation ckpt + wandb/swanlab |
-| Phase 5: 发布闭环 | ✅ | safetensors + Qwen3 export + HF/MS push + OpenAI 兼容 API + `release.sh` 端到端流水线 |
-| Phase E1: 评测体系 | ✅ | C-Eval + CMMLU + AlignBench + LLM-as-Judge + 多模型对照 |
-| AutoDL 上线工具链 | ✅ | preflight + launch(tmux) + status + save + release |
 
 ## 📁 项目结构
 
 ```
 clear-mind/
-├── src/
-│   ├── model/            # GPT 架构（config/rope/attention/transformer/...）
-│   ├── data/             # HF tokenizer + 4 个 dataset 类
-│   ├── training/         # base_trainer + pretrain/sft/dpo/distillation/grpo + rollout_engine
-│   └── inference/        # generate.py + chat.py
+├── src/                    # 模型 / trainer / dataset / inference
 ├── scripts/
-│   ├── train.py          # 统一训练入口（--stage pretrain/sft/dpo/distillation/grpo）
-│   ├── release.sh        # ⭐ 端到端发布流水线（convert + 验证 + 打包 + push）
-│   ├── autodl/           # ⭐ AutoDL 一键工具链
-│   │   ├── preflight.sh  #   9 项自检
-│   │   ├── launch.sh     #   tmux 启动器（断 SSH 不影响）
-│   │   ├── status.sh     #   状态查询
-│   │   └── save_outputs.sh
+│   ├── train.py            # 统一训练入口（--stage pretrain/sft/dpo/distillation/grpo）
+│   ├── release.sh          # ⭐ 端到端发布流水线
+│   ├── autodl/             # ⭐ AutoDL 一键工具链（preflight/launch/status/save_outputs）
 │   └── {convert_to_qwen3,push_to_hub,push_to_modelscope,smoke_test}.py
-├── evaluate/             # ⭐ Phase E1 评测体系
-│   ├── benchmarks/{ceval,cmmlu,alignbench}.py
-│   ├── judge/llm_judge.py
-│   └── eval_compare.py
-├── deploy/               # OpenAI 兼容 API + Web demo + Dockerfile
-├── configs/              # tiny/small/main/plus.yaml
-├── tests/                # 147 个单元测试
+├── evaluate/               # C-Eval / CMMLU / AlignBench / LLM-as-Judge
+├── deploy/                 # OpenAI 兼容 API + Web demo + Dockerfile
+├── space/                  # ⭐ Streamlit demo（推到 ModelScope 创空间）
+├── configs/                # tiny / small / main / plus
+├── tests/                  # 147 个单元测试
 └── docs/
-    ├── AUTODL_GUIDE.md   # ⭐ 8 步攻略（rent → train → eval → release）
-    ├── PRD.md / TECHNICAL_DESIGN.md / PROGRESS_TRACKER.md
-    └── DEPLOY.md
+    ├── RELEASE_GUIDE.md    # ⭐ 模型权重发布完整手册
+    ├── DEMO_DEPLOY.md      # ⭐ Demo 部署到 MS 创空间
+    ├── AUTODL_GUIDE.md     # AutoDL 训练上线
+    ├── DEPLOY.md           # 推理服务部署
+    └── PRD.md / TECHNICAL_DESIGN.md / PROGRESS_TRACKER.md
 ```
 
 ## 📚 详细文档
 
-- **[docs/AUTODL_GUIDE.md](docs/AUTODL_GUIDE.md)** — 完整上线攻略（rent + 自检 + 训练 + 评估 + 发布）
-- **[evaluate/README.md](evaluate/README.md)** — 评测体系与 OpenCompass 对齐说明
-- **[docs/PRD.md](docs/PRD.md)** — 产品需求与目标
-- **[docs/TECHNICAL_DESIGN.md](docs/TECHNICAL_DESIGN.md)** — 架构与各模块设计
-- **[docs/PROGRESS_TRACKER.md](docs/PROGRESS_TRACKER.md)** — 阶段进度追踪
-- **[docs/DEPLOY.md](docs/DEPLOY.md)** — 部署到 HF / ModelScope
-- **[CLAUDE.md](CLAUDE.md)** — Claude Code 协作的项目指南
+| 文档 | 内容 |
+|---|---|
+| [docs/AUTODL_GUIDE.md](docs/AUTODL_GUIDE.md) | AutoDL 训练上线（rent + 自检 + 训练 + 评估 + 归档） |
+| [docs/RELEASE_GUIDE.md](docs/RELEASE_GUIDE.md) | 模型权重发布到 HF + ModelScope（端到端） |
+| [docs/DEMO_DEPLOY.md](docs/DEMO_DEPLOY.md) | Demo 部署到 ModelScope 创空间（含 token 持久化） |
+| [docs/DEPLOY.md](docs/DEPLOY.md) | 推理服务部署（OpenAI 兼容 API / Gradio / Docker） |
+| [docs/TECHNICAL_DESIGN.md](docs/TECHNICAL_DESIGN.md) | 架构与各模块设计 |
+| [docs/PRD.md](docs/PRD.md) | 产品需求与目标 |
+| [docs/PROGRESS_TRACKER.md](docs/PROGRESS_TRACKER.md) | 阶段进度 |
+| [evaluate/README.md](evaluate/README.md) | 评测体系 |
+| [CLAUDE.md](CLAUDE.md) | Claude Code 协作的项目指南 |
 
 ## 🧪 测试
 
 ```bash
-./venv/bin/python -m pytest tests/ -q   # 147 passed
-./venv/bin/python -m ruff  check src/ scripts/ tests/  # lint 全绿
-./venv/bin/python scripts/smoke_test.py --clean        # 端到端冒烟（CPU/MPS ~5 分钟）
+./venv/bin/python -m pytest tests/ -q                  # 147 passed
+./venv/bin/python -m ruff check src/ scripts/ tests/   # lint 全绿
+./venv/bin/python scripts/smoke_test.py --clean        # 端到端 ~5 min
 ```
-
-覆盖：模型前后向 / attention（GQA/KV cache/SWA）/ 配置 / HF tokenizer / 文本生成 / 三种 dataset / DPO loss / Distillation KL / GRPO reward / Rollout 引擎 / LoRA / 训练边界条件 / Resume / RMSNorm bf16 dtype 契约 / DPO max_steps override。
 
 ## 🙏 致谢
 
-- 数据集 / tokenizer / chat_template 模板：[jingyaogong/minimind](https://github.com/jingyaogong/minimind)（Apache-2.0）
+- 数据 / tokenizer / chat_template：[jingyaogong/minimind](https://github.com/jingyaogong/minimind)（Apache-2.0）
 - 架构灵感：Llama / Qwen / Gemma
 - 算法：RoFormer (RoPE) / GQA / SwiGLU / DPO / GRPO / CISPO
 
 ## 📝 License
 
-Apache-2.0（与 minimind 数据/tokenizer 来源协议保持一致）。
+Apache-2.0（与 minimind 数据 / tokenizer 来源协议保持一致）。
 
 ---
 
-> **声明**：本项目复用 minimind 的开源数据集与 tokenizer 资产（Apache-2.0），独立实现了模型架构、trainer、dataset 适配层、评测体系与发布工具链。所有 minimind 借鉴点在代码注释中均有标注；所有"超越路径"改进项在 PRD 与 plan 文件中有详细论证。
+> **声明**：本项目复用 minimind 的开源数据与 tokenizer（Apache-2.0），独立实现了模型架构、trainer、dataset 适配层、推理 / 评测 / 发布工具链与 Streamlit demo。所有 minimind 借鉴点在代码注释中均有标注。

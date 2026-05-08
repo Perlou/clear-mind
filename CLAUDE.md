@@ -8,10 +8,14 @@ ClearMind 与 minimind 的关系：复用 minimind 的 tokenizer 与数据生态
 
 ## 双发布矩阵
 
-| 产品 | 配置 | 参数量 | 对标 |
-|---|---|---|---|
-| **ClearMind-Base** | `configs/main.yaml` | **68.8M** dense | minimind-3 (64M dense) |
-| **ClearMind-Plus** | `configs/plus.yaml` | **486.3M** dense | minimind-3-moe (198M-A64M)，单 token 算力 7.1× |
+| 产品 | 配置 | 参数量 | 对标 | ModelScope | HuggingFace |
+|---|---|---|---|---|---|
+| **ClearMind-Base** | `configs/main.yaml` | **68.8M** dense | minimind-3 (64M dense) | [Perlou/ClearMind-Base](https://www.modelscope.cn/models/Perlou/ClearMind-Base) | [Perlous/ClearMind-Base](https://huggingface.co/Perlous/ClearMind-Base) |
+| **ClearMind-Plus** | `configs/plus.yaml` | **486.3M** dense | minimind-3-moe (198M-A64M)，单 token 算力 7.1× | [Perlou/ClearMind-Plus](https://www.modelscope.cn/models/Perlou/ClearMind-Plus) | [Perlous/ClearMind-Plus](https://huggingface.co/Perlous/ClearMind-Plus) |
+
+**在线演示**：[https://www.modelscope.cn/studios/Perlou/ClearMind-Demo](https://www.modelscope.cn/studios/Perlou/ClearMind-Demo) ✅ 已上线（`space/app.py`，Streamlit + ModelScope 创空间）
+
+> 用户名差异：HuggingFace = `Perlous`（多一个 s），ModelScope = `Perlou`。两个平台账号体系独立。
 
 ## 架构
 
@@ -30,9 +34,12 @@ ClearMind 与 minimind 的关系：复用 minimind 的 tokenizer 与数据生态
 | 推理 | `src/inference/` (generate.py, chat.py) |
 | 入口脚本 | `scripts/train.py` (统一训练入口，`--stage pretrain/sft/dpo`) |
 | 配置文件 | `configs/{tiny,small,main,plus}.yaml`（与 ModelConfig.tiny()/.small()/.main()/.plus() 对齐） |
+| 发布工具链 | `scripts/{release.sh, convert_to_qwen3.py, push_to_hub.py, push_to_modelscope.py}` |
+| **Streamlit Demo** | `space/{app.py, requirements.txt, README.md, configuration.json}`（推到 ModelScope 创空间 `Perlou/ClearMind-Demo`） |
 | 测试 | `tests/` |
 | **Tokenizer 资产** | **`tokenizer/minimind/`**（顶层目录，git 追踪；从 minimind 复制） |
 | 训练数据 | `data/`（gitignore，不上传仓库；用户从 minimind_dataset 自行下载） |
+| 本地凭证 | `.env`（gitignore；`MODELSCOPE_API_TOKEN` 等。配 `direnv` 进项目目录自动加载，见 `docs/DEMO_DEPLOY.md`） |
 
 ## 数据集（与 minimind 一致的扁平结构）
 
@@ -94,6 +101,17 @@ bash scripts/autodl/preflight.sh --profile base   # 9 项强制自检
 bash scripts/autodl/launch.sh    base all         # tmux 内全流程
 bash scripts/autodl/status.sh                     # 状态查询
 bash scripts/autodl/save_outputs.sh base          # 归档下载
+
+# 发布到 HF + ModelScope（base/plus 训完后跑）
+bash scripts/release.sh base \
+    --push-hf Perlous/ClearMind-Base \
+    --push-ms Perlou/ClearMind-Base
+# 详见 docs/RELEASE_GUIDE.md
+
+# Streamlit Demo（本地预览或推到 ModelScope 创空间）
+cd space
+CLEARMIND_PLATFORM=ms ../venv/bin/python -m streamlit run app.py --server.port 8501
+# 部署到 https://www.modelscope.cn/studios/Perlou/ClearMind-Demo 详见 docs/DEMO_DEPLOY.md
 ```
 
 ## 已知 bug 修复 / 状态
@@ -116,6 +134,10 @@ bash scripts/autodl/save_outputs.sh base          # 归档下载
 | **`download_data.py` 末尾推荐已废弃的 `scripts/autodl_train.sh`** | ✅ 已修复 2026-05-07（改推荐 `scripts/autodl/preflight.sh + launch.sh`） |
 | **`requirements.txt` 缺 pytest/ruff/tensorboard，且 transformers 版本未封顶** | ✅ 已修复 2026-05-07（锁 `transformers>=4.40,<5` + 加 dev deps，避免 5.x 与 4.x 行为分叉） |
 | ruff 51 项 lint 错（unused import / 空 f-string / E402 / E731 / F841） | ✅ 已修复 2026-05-07（38 项自动 fix + 13 项 `# noqa` 镇压，零功能改动） |
+| **`configs/main.yaml` / `configs/plus.yaml` 被人为调低** (max_seq_len 768 vs 规格 1024, max_steps 缩半) | ✅ 已修复 2026-05-08（恢复发布版完整配置；`generation.max_new_tokens` 同步从 1024 改 512 防 chat 推理时 budget=0 触发夹紧警告） |
+| **`space/requirements.txt` `huggingface_hub` 上限 `<2` 太松导致拉到 1.6.0，与 transformers 4.x 内部 `require_version_core("huggingface-hub>=0.34.0,<1.0")` 冲突，ModelScope Studio 起 streamlit 时 ImportError** | ✅ 已修复 2026-05-08（锁定 `huggingface_hub>=0.34.0,<1.0`） |
+| **`space/app.py` 顶部 padding 100px 太多 + chat_input `position: fixed` 在 ModelScope iframe 嵌套下破坏布局**（标题被挤到右上角，sidebar 占位错乱） | ✅ 已修复 2026-05-08（顶部 padding 100→50；删除 fixed bottom 强制定位，依赖 streamlit 默认 sticky） |
+| **本地 `venv` 是 Python 3.14 + transformers 5.8 与 CLAUDE.md 强制 `<5` 冲突** | ✅ 已修复 2026-05-08（`uv venv --python python3.12` 重建，装 transformers 4.57.x；规则记入 `docs/RELEASE_GUIDE.md` § 1.1） |
 
 ## 代码规范
 
@@ -157,5 +179,6 @@ bash scripts/autodl/save_outputs.sh base          # 归档下载
 - 🟢 **Phase 3**（训练阶段扩展）：Pretrain / SFT / DPO / 白盒蒸馏 / GRPO+CISPO / Rollout 引擎（Torch + SGLang 双 backend）已就绪；PPO / Agentic RL 列入 Phase 3.x 待补
 - ✅ **Phase 4**（工程化）：torch.compile + wandb/swanlab + SkipBatchSampler + **fused AdamW** + **DDP no_sync** + **activation checkpointing**（main/plus.yaml 已默认开启推荐项）
 - ✅ **Phase 5**（发布）：OpenAI 兼容 API server + Qwen3 兼容导出（`convert_to_qwen3.py`）+ safetensors + HF/ModelScope push + **`scripts/release.sh` 端到端流水线**（含 transformers 加载验证）
+- ✅ **Phase 6**（在线演示）：Streamlit demo（`space/app.py`）+ ModelScope 创空间部署 ✅ 已上线 [Perlou/ClearMind-Demo](https://www.modelscope.cn/studios/Perlou/ClearMind-Demo)（base/plus 占位指向 small，训完通过环境变量切换无需改代码；详见 `docs/DEMO_DEPLOY.md`）
 - ✅ **Phase E1**（评测）：C-Eval / CMMLU / AlignBench-zh + LLM-as-Judge + 多模型对照（`evaluate/benchmarks/` + `evaluate/judge/` + `eval_compare.py`）
 - ✅ **AutoDL 上线**：preflight + tmux launch + status + save_outputs + release 全套脚本，断 SSH 不影响
