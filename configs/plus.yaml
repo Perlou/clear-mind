@@ -26,6 +26,7 @@ tokenizer:
 # batch_size=16, accumulation=8 → effective batch = 128
 # 16 * 1024 = 16384 tokens/micro-step
 pretrain:
+  data: data/pretrain_t2t.jsonl                  # plus 用全量预训练语料（非 mini）
   batch_size: 16
   gradient_accumulation: 8                       # effective batch = 128
   max_steps: 38000                               # ≈ 5B tokens 曝光，A100 ~28h（ClearMind-Plus 发布版完整训练量）
@@ -52,6 +53,7 @@ pretrain:
   wandb_project: "ClearMind-Plus"
 
 sft:
+  data: data/sft_t2t.jsonl                       # plus 用全量 SFT 语料（非 mini）
   batch_size: 8
   gradient_accumulation: 8                       # effective batch = 64
   epochs: 2
@@ -68,6 +70,7 @@ sft:
   val_ratio: 0.02
 
 dpo:
+  data: data/dpo.jsonl                           # plus 与 base 共用同一份偏好数据
   batch_size: 4
   gradient_accumulation: 8                       # effective batch = 32
   epochs: 1

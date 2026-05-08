@@ -25,9 +25,14 @@ train.py — 统一训练入口
   python scripts/train.py --stage pretrain --resume outputs/pretrain/checkpoint_step1000.pth
 
 数据约定（参见 README）：
-  data/pretrain_t2t_mini.jsonl     ← MiniMind 预训练数据（每行 {"text": ...}）
-  data/sft_t2t_mini.jsonl          ← MiniMind SFT 数据（每行 {"conversations": [...]}）
-  data/dpo.jsonl                   ← MiniMind DPO 数据（每行 {"chosen": [...], "rejected": [...]}）
+  data/pretrain_t2t_mini.jsonl     ← MiniMind 预训练数据 mini 版（tiny/small/main 默认）
+  data/sft_t2t_mini.jsonl          ← MiniMind SFT 数据 mini 版（tiny/small/main 默认）
+  data/pretrain_t2t.jsonl          ← MiniMind 预训练数据全量（plus 用，由 plus.yaml 显式指定）
+  data/sft_t2t.jsonl               ← MiniMind SFT 数据全量（plus 用，由 plus.yaml 显式指定）
+  data/dpo.jsonl                   ← MiniMind DPO 数据（所有配置共用）
+
+数据路径解析优先级：
+  CLI --data > configs/<name>.yaml 的 <stage>.data 字段 > STAGE_DEFAULTS（mini 兜底）
 """
 
 import os
@@ -433,7 +438,16 @@ def main():
 
     defaults = STAGE_DEFAULTS[args.stage]
     if args.data is None:
-        args.data = defaults["data"]
+        # 数据路径解析优先级：CLI --data > yaml <stage>.data > STAGE_DEFAULTS
+        # 这样 plus.yaml 可在 pretrain/sft 块通过 `data:` 字段指向 t2t 全量数据，
+        # 而 tiny/small/main 不写该字段时回退到 STAGE_DEFAULTS 的 mini 数据。
+        try:
+            with open(args.config) as _f:
+                _yaml_cfg = yaml.safe_load(_f) or {}
+        except FileNotFoundError:
+            _yaml_cfg = {}
+        _stage_cfg = _yaml_cfg.get(args.stage) or {}
+        args.data = _stage_cfg.get("data") or defaults["data"]
     if args.output_dir is None:
         args.output_dir = defaults["output_dir"]
 
