@@ -12,7 +12,7 @@
 
 **👉 [https://www.modelscope.cn/studios/Perlou/ClearMind-Demo](https://www.modelscope.cn/studios/Perlou/ClearMind-Demo)**
 
-可选 Base / Plus，支持自适应思考（`<think>`）、工具调用、流式输出、中英双语 UI。
+目前只支持 Base ，Plus 版本训练成本过高，暂时未开始训练，支持自适应思考（`<think>`）、工具调用、流式输出、中英双语 UI。
 
 ## 📦 模型仓库
 

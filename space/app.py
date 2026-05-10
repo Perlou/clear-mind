@@ -42,23 +42,17 @@ PLATFORM = os.environ.get("CLEARMIND_PLATFORM", "ms").lower()  # ms / hf
 # 注意：HF 用户名 Perlous，ModelScope 用户名 Perlou
 DEFAULT_REPOS = {
     "hf": {
-        "ClearMind-Plus": "Perlous/ClearMind-Base",  # TODO 训完改回 Perlous/ClearMind-Plus
         "ClearMind-Base": "Perlous/ClearMind-Base",
-        "ClearMind-Small": "Perlous/ClearMind-Small",
     },
     "ms": {
-        "ClearMind-Plus": "Perlou/ClearMind-Base",  # TODO 训完改回 Perlou/ClearMind-Plus
         "ClearMind-Base": "Perlou/ClearMind-Base",
-        "ClearMind-Small": "Perlou/ClearMind-Small",
     },
 }
 
 REPOS = DEFAULT_REPOS.get(PLATFORM, DEFAULT_REPOS["ms"]).copy()
 # 允许通过环境变量覆盖单个规格的 repo id（部署期切换方便）
 for k, env in [
-    ("ClearMind-Small", "CLEARMIND_REPO_Small"),
     ("ClearMind-Base", "CLEARMIND_REPO_BASE"),
-    ("ClearMind-Plus", "CLEARMIND_REPO_PLUS"),
 ]:
     if os.environ.get(env):
         REPOS[k] = os.environ[env]
@@ -477,7 +471,7 @@ st.session_state.history_chat_num = st.sidebar.slider(
     get_text("history_rounds"), 0, 8, 0, step=2
 )
 st.session_state.max_new_tokens = st.sidebar.slider(
-    get_text("max_length"), 128, 2048, 512, step=64
+    get_text("max_length"), 128, 2048, 2048, step=64
 )
 st.session_state.temperature = st.sidebar.slider(
     get_text("temperature"), 0.6, 1.2, 0.90, step=0.01
